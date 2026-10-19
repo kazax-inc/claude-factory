@@ -1,8 +1,8 @@
 # claude-factory
 
-Spec-driven development for [Claude Code](https://claude.com/claude-code), packaged as a
-Claude Code plugin: one orchestrator skill (`/factory`), 30 specialised subagents and a hooks
-module that take a feature from a rough idea to reviewed, tested and committed code.
+Spec-driven development for [Claude Code](https://claude.com/claude-code), packaged as two
+Claude Code plugins: `factory`, one orchestrator skill (`/factory`) and 30 specialised subagents,
+and `factory-mods`, a hooks module that checks and measures their work. Together they take a feature from a rough idea to reviewed, tested and committed code.
 
 Every step writes a Markdown file (requirements, spec, contracts, ADRs, plan, routing, state)
 whose YAML frontmatter holds the data programs read. Every deliverable passes through a gate
@@ -18,7 +18,7 @@ instead of guessing.
 - [Data and usage](#data-and-usage)
 - [Model routing](#model-routing)
 - [Customising](#customising)
-- [Developing the plugin](#developing-the-plugin)
+- [Developing the plugins](#developing-the-plugins)
 
 ## Install
 
@@ -26,6 +26,7 @@ At the prompt of a Claude Code session (2.1.275 or later):
 
 ```text
 /plugin install factory --marketplace kazax-inc/claude-factory
+/plugin install factory-mods --marketplace kazax-inc/claude-factory
 ```
 
 Answer `y` to add the marketplace, then pick a scope: **user** to use the factory in every
@@ -33,14 +34,21 @@ project, **project** to share it with everyone working on the repository. From a
 
 ```bash
 claude plugin install factory --marketplace kazax-inc/claude-factory
+claude plugin install factory-mods --marketplace kazax-inc/claude-factory
 ```
 
 In the desktop app, where `/plugin` does not run: click **+** next to the prompt box, then
-**Plugins**, **Add marketplace** with `kazax-inc/claude-factory`, then **Add plugin**.
+**Plugins**, **Add marketplace** with `kazax-inc/claude-factory`, then **Add plugin** for each of the two.
 
-The plugin brings the skill, the agents and the hooks together. Nothing else is needed: no
-settings to merge, no Python or Node, and the same install works on Windows, macOS and Linux,
-because the hooks are a TypeScript module that Claude Code runs itself.
+| Plugin | Brings |
+|---|---|
+| `factory` | the `/factory` skill and the 30 agents: the pipeline itself |
+| `factory-mods` | the hooks: frontmatter checks on every write, usage stats per task, `/factory-check` |
+
+`factory` works on its own; `factory-mods` adds the checks and the stats, and is only useful
+with `factory`. Nothing else is needed: no settings to merge, no Python or Node, and the same
+install works on Windows, macOS and Linux, because the hooks are a TypeScript module that
+Claude Code runs itself.
 
 Then run `/factory` in the project you want to build.
 
@@ -375,11 +383,11 @@ Default model / effort are each agent's own; `model-router` can raise them per t
 | `.plan/<feature>/retro-<phase>.md` | `retro-analyst` |
 | `.plan/<feature>/STATE.md` | `state-keeper` — tasks, verdicts, decisions, blockers, follow-ups, next step |
 | `.plan/STATE.md` | `state-keeper` — index of all features and the active one |
-| `.plan/<feature>/stats/{runs,tasks,orchestrator}/*.md` | hooks — usage per subagent run, per task, and for the orchestrator |
+| `.plan/<feature>/stats/{runs,tasks,orchestrator}/*.md` | `factory-mods` hooks — usage per subagent run, per task, and for the orchestrator |
 
 Every file has a YAML frontmatter with its data (task statuses, gate verdicts, routing,
 decisions, SPEC and AC ids, open questions, ADR options…); the formats are in
-[`docs/data.md`](docs/data.md).
+[`docs/data.md`](plugins/factory-mods/docs/data.md).
 
 ## Data and usage
 
@@ -388,7 +396,7 @@ way Claude Code's own skills and agents carry theirs. There is no second, derive
 drift from it.
 
 - **Checked on write.** After every Write or Edit of a `.plan/` or `.specs/` file, the
-  plugin's hooks check its frontmatter (fields, allowed values, task ids that match plan.md,
+  `factory-mods` hooks check its frontmatter (fields, allowed values, task ids that match plan.md,
   ADR ids that match their file…) and hand any error back to the agent that wrote it, which
   fixes the file in the same run.
 - **Usage stats.** The hooks sum the model requests Claude Code reports for every subagent
@@ -397,7 +405,7 @@ drift from it.
   up to task, phase and plan in `.plan/<feature>/stats/`, as Markdown files whose frontmatter
   holds the numbers. A task's file also stamps when it started and finished.
 - **Progress** (counts, percent, ready tasks, phase and stage status) is computed by readers
-  from STATE.md and plan.md, with the rules in [`docs/data.md`](docs/data.md).
+  from STATE.md and plan.md, with the rules in [`docs/data.md`](plugins/factory-mods/docs/data.md).
 
 `/factory-check` checks every pipeline file at once and rewrites the task stats from the run
 files.
@@ -419,36 +427,42 @@ gates costs more than a strong one that gets it right first time.
 ## Customising
 
 Fork this repository, edit it, and install your fork the same way
-(`/plugin install factory --marketplace <you>/claude-factory`).
+(`/plugin install factory --marketplace <you>/claude-factory`, and the same for `factory-mods`).
 
-- **Agents** — each agent is a single Markdown file in `agents/` with its default `model`,
+- **Agents** — each agent is a single Markdown file in `plugins/factory/agents/` with its default `model`,
   `effort` and `tools` in the frontmatter.
 - **Pipeline rules** — phases, gate loop limits and escalation rules live in
-  `skills/factory/SKILL.md`. `retro-analyst` proposes edits to these; it never applies them.
+  `plugins/factory/skills/factory/SKILL.md`. `retro-analyst` proposes edits to these; it never applies them.
 - **Formats** — a frontmatter field is defined in three places that must agree: the template
-  in the agent that writes it, the schema in `hooks/schemas.ts`, and `docs/data.md`.
+  in the agent that writes it, the schema in
+  `plugins/factory-mods/hooks/schemas.ts`, and `plugins/factory-mods/docs/data.md`.
 
-## Developing the plugin
+## Developing the plugins
 
 ```text
-.claude-plugin/plugin.json        the plugin manifest
-.claude-plugin/marketplace.json   makes this repository its own marketplace
-skills/factory/SKILL.md           the orchestrator
-agents/*.md                       the 30 subagents
-hooks/hooks.json                  names the hooks module
-hooks/register.ts                 the hooks: frontmatter checks, usage stats, /factory-check
-hooks/schemas.ts, yaml.ts         the frontmatter schemas and the YAML subset parser
-hooks/stats.ts                    usage metrics
-hooks/factory.test.ts             tests
-docs/data.md                      the data formats
+.claude-plugin/marketplace.json            makes this repository a marketplace of both plugins
+plugins/factory/
+  .claude-plugin/plugin.json               the factory manifest
+  skills/factory/SKILL.md                  the orchestrator
+  agents/*.md                              the 30 subagents
+plugins/factory-mods/
+  .claude-plugin/plugin.json               the factory-mods manifest
+  hooks/hooks.json                         names the hooks module
+  hooks/register.ts                        the hooks: frontmatter checks, usage stats, /factory-check
+  hooks/schemas.ts, yaml.ts                the frontmatter schemas and the YAML subset parser
+  hooks/stats.ts                           usage metrics
+  hooks/factory.test.ts                    tests
+  docs/data.md                             the data formats
 ```
 
 Run a session with your working copy loaded, check it, and run the tests:
 
 ```bash
-claude --plugin-dir .             # a session with the plugin loaded from this folder
-claude plugin validate .          # manifest, marketplace and hooks module
-claude plugin test .              # hooks/*.test.ts
+claude --plugin-dir plugins                   # a session with both plugins loaded from this folder
+claude plugin validate .                      # the marketplace
+claude plugin validate plugins/factory        # the factory manifest
+claude plugin validate plugins/factory-mods   # the factory-mods manifest and hooks module
+claude plugin test plugins/factory-mods       # hooks/*.test.ts
 ```
 
 The hooks module runs in Claude Code's own environment (no Node, no DOM): it reaches files,

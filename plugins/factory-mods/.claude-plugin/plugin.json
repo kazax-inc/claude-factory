@@ -1,0 +1,7 @@
+{
+  "name": "factory-mods",
+  "version": "0.3.0",
+  "description": "Mods for the factory plugin: a hooks module that checks the pipeline files' YAML frontmatter, records usage per task and adds /factory-check.",
+  "author": { "name": "Kazax" },
+  "license": "MIT"
+}

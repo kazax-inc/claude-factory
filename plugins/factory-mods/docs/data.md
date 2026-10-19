@@ -4,7 +4,7 @@ Every file the pipeline writes is Markdown. The data meant for programs (dashboa
 tools, the orchestrator itself) lives in the file's **YAML frontmatter**: the block between a
 first line `---` and the next `---` line. The body after it is for people.
 
-- Agents write the frontmatter of the files they own. The plugin's hooks check it after every
+- Agents write the frontmatter of the files they own. The `factory-mods` hooks check it after every
   Write or Edit and hand the errors back to the agent, which fixes the file in the same run.
 - The hooks write the usage stats under `.plan/<feature>/stats/`, with the same layout: data
   in the frontmatter, a short readable summary in the body.
@@ -297,7 +297,7 @@ session_id: abc
 feature: usage-panel
 phase: "1"
 task: T1.1
-agent: implementer          # without the plugin's `factory:` prefix
+agent: implementer          # without the factory plugin's `factory:` prefix
 description: T1.1 implement
 effort: medium              # null when the model has no effort setting
 models: [claude-opus-5-5]
@@ -346,9 +346,9 @@ the feature that is `active` at that moment. The metrics, plus `session_id`, `fe
 
 ## Limits
 
-- Usage is recorded while the plugin is loaded. Runs that happened without it are not
+- Usage is recorded while `factory-mods` is loaded. Runs that happened without it are not
   counted, and cannot be rebuilt later.
-- If the plugin reloads while a subagent is running, the requests of that turn made before the
+- If `factory-mods` reloads while a subagent is running, the requests of that turn made before the
   reload are lost; later turns of the same agent continue its file.
 - `/factory-check` checks every pipeline file and rewrites every task's stats from the run
   files; it does not create runs.

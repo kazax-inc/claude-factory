@@ -1,4 +1,4 @@
-// The factory plugin's hooks:
+// The factory-mods plugin's hooks, for the factory plugin's pipeline:
 //   - after an agent writes a .plan/ or .specs/ file, check its YAML frontmatter and hand the
 //     errors back to that agent (a PostToolUse block), so it fixes the file in the same run;
 //   - record the usage of every subagent a /factory brief attributes to a feature and task, and
@@ -29,7 +29,8 @@ type Run = {
   metrics: Metrics
 }
 
-const PLUGIN = 'factory'
+// The plugin that ships the /factory skill and the agents (`factory:<agent>`).
+const FACTORY = 'factory'
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/
 const SETUP_PHASE = 'setup'
 const MAIN = '<main>'
@@ -260,7 +261,7 @@ async function startRun($: $, root: string, agentId: string, prompt: string): Pr
   runs.set(agentId, {
     feature, task,
     phase: inPlan || isStage ? phaseOf(task, plan) : (header.phase ?? phaseOf(task, plan)),
-    agent: info ? info.type.replace(new RegExp(`^${PLUGIN}:`), '') : null,
+    agent: info ? info.type.replace(new RegExp(`^${FACTORY}:`), '') : null,
     description: info?.description ?? null,
     effort: null, started_at: await now($), ended_at: null, turns: 0, metrics: newMetrics(),
   })
@@ -392,11 +393,11 @@ export const register: Register = on => {
 
   // The orchestrator's usage counts from the session's first /factory on.
   on('prompt.submit', ($, e, next) => {
-    if (e.command && [PLUGIN, `${PLUGIN}:${PLUGIN}`].includes(e.command.name)) isFactorySession = true
+    if (e.command && [FACTORY, `${FACTORY}:${FACTORY}`].includes(e.command.name)) isFactorySession = true
     return next(e)
   }).catch(passOn)
   on('tool.call', { tool: 'Skill' }, ($, e, next) => {
-    if (e.agentId === undefined && [PLUGIN, `${PLUGIN}:${PLUGIN}`].includes(e.skill)) isFactorySession = true
+    if (e.agentId === undefined && [FACTORY, `${FACTORY}:${FACTORY}`].includes(e.skill)) isFactorySession = true
     return next(e)
   }).catch(passOn)
 

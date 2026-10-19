@@ -1,6 +1,17 @@
 {
   "name": "claude-factory",
-  "description": "The factory plugin: spec-driven development with an orchestrator skill, 30 subagents and gate reviews.",
+  "description": "Spec-driven development with Claude Code: the factory plugin (orchestrator skill, 30 subagents) and factory-mods (frontmatter checks, usage stats).",
   "owner": { "name": "Kazax" },
-  "plugins": [{ "name": "factory", "source": "./" }]
+  "plugins": [
+    {
+      "name": "factory",
+      "source": "./plugins/factory",
+      "description": "The /factory orchestrator skill and 30 specialised subagents."
+    },
+    {
+      "name": "factory-mods",
+      "source": "./plugins/factory-mods",
+      "description": "Hooks for the factory pipeline: frontmatter checks, per-task usage stats, /factory-check."
+    }
+  ]
 }

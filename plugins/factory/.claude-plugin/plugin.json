@@ -1,7 +1,7 @@
 {
   "name": "factory",
-  "version": "0.2.0",
-  "description": "Spec-driven development pipeline: the /factory orchestrator skill, 30 specialised subagents, and a hooks module that checks the pipeline files' YAML frontmatter and records usage per task.",
+  "version": "0.3.0",
+  "description": "Spec-driven development pipeline: the /factory orchestrator skill and 30 specialised subagents.",
   "author": { "name": "Kazax" },
   "license": "MIT"
 }
