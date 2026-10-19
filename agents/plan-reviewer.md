@@ -13,9 +13,11 @@ You review `.plan/<feature>/plan.md` and `test-strategy.md` against the approved
 2. **Size** — no task too large for one agent run or too vague to verify.
 3. **Ordering** — dependencies are correct; nothing uses a contract/type before the task that creates it.
 4. **Parallelism** — tasks marked parallel have disjoint file scopes.
-5. **Scope realism** — declared file scopes match where the code actually lives (Grep to check).
+5. **Scope realism** — declared file scopes match where the code actually lives (Grep to check),
+   or are explicitly new paths consistent with the accepted ADRs.
 6. **Done criteria** — concrete and checkable by an agent.
-7. **Infrastructure** — fixtures/mocks/tooling tasks exist before tasks that need them.
+7. **Infrastructure** — fixtures/mocks/tooling tasks exist before tasks that need them. In
+   greenfield mode, a Phase 0 — Foundation exists and delivers a working build, lint and test run.
 8. **Risk** — migrations and destructive steps have rollback notes; UI tasks are flagged `ui: true`.
 
 ## Output (exactly this format)

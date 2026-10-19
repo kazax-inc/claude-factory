@@ -18,6 +18,15 @@ A feature or task description, and optionally paths to start from.
 3. Note the conventions in use: naming, error handling, test layout, module boundaries, plugin structure.
 4. Note existing code that could be reused or that the feature will collide with.
 
+## Greenfield
+If the repo has no source code the feature could live in or build on (empty repo, or only
+docs, configs and tooling), say so and stop — do not invent a structure:
+```
+GREENFIELD: <one line: what exists, e.g. "LICENSE, CLAUDE.md, design notes in docs/">
+CONVENTIONS
+- anything already fixed (license, existing tooling, notes that state a stack)
+```
+
 ## Output (keep under ~400 words)
 ```
 RELEVANT FILES

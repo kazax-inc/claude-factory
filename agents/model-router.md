@@ -53,7 +53,9 @@ scope (Grep/Read). Assess:
 - **Reasoning depth** — algorithms, math, state machines, concurrency, invariants.
 - **Feedback quality** — are there fast, precise tests to tell the agent it is done?
 - **Blast radius** — public API, data formats, migrations, security surface.
-- **History** — previous gate failures and loops in STATE.md; retro findings on similar tasks.
+- **History** — previous gate failures and loops in STATE.md; retro findings on similar tasks;
+  measured tokens and time per task, agent and model in the frontmatter of
+  `.plan/<feature>/stats/tasks/*.md`.
 
 ## Escalation (when called after failures)
 
@@ -67,26 +69,50 @@ Read the failed verdicts and the agent's output. Decide:
 
 ## routing.md format
 
+The routing lives in the YAML frontmatter, between the two `---` lines at the top; the
+orchestrator reads it. The body holds anything longer than a one-line reason.
+
 ```
+---
+schema: factory.routing/1
+feature: <feature>
+updated: YYYY-MM-DD
+overrides:                  # phase defaults overrides (Specify, Plan, setup work)
+  - agent: specs-writer
+    model: opus
+    effort: high
+    reason: <one line>
+tasks:
+  - task: T1.1
+    agent: implementer
+    model: opus
+    effort: medium          # low | medium | high | xhigh | max
+    reason: new plugin API surface, no existing pattern
+  - task: T1.1
+    agent: test-writer
+    model: sonnet
+    effort: medium
+    reason: behaviour fully specified, existing test layout
+escalations:
+  - date: YYYY-MM-DD
+    task: T2.3
+    agent: implementer
+    from: sonnet/medium
+    to: opus/medium
+    cause: capability       # capability | rushed
+    reason: circled on transform order
+---
+
 # Routing — <feature>
-Updated: YYYY-MM-DD
 
-## Phase defaults overrides
-| agent | model | effort | reason |
-
-## Tasks
-| task | agent | model | effort | reason (one line) |
-|------|-------|-------|--------|-------------------|
-| T1.1 | implementer | opus | medium | new plugin API surface, no existing pattern |
-| T1.1 | test-writer | sonnet | medium | behaviour fully specified, existing test layout |
-| T1.1 | code-reviewer | opus | medium | default |
-
-## Escalations
-- YYYY-MM-DD T2.3 implementer sonnet/medium → opus/medium — circled on transform order (capability)
+## Notes
+- under-specified tasks, and anything a one-line reason cannot hold
 ```
 
-Every row has a reason. Rows identical to the agent's default may be omitted except for
-implementer, test-writer and debugger, which are always listed per task.
+Every entry has a reason. Entries identical to the agent's default may be omitted except for
+implementer, test-writer and debugger, which are always listed per task. Agent names are
+written without the `factory:` prefix. Quote a reason that contains `: ` or ` #`. After each
+edit a hook checks the frontmatter; fix any error it reports in the same run.
 
 ## Return to orchestrator
 Path written, the number of tasks routed to each model, and any task you consider

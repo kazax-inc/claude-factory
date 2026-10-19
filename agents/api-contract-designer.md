@@ -16,10 +16,20 @@ You define contracts, not implementations. You write `.specs/<feature>/contracts
 5. Keep surfaces minimal. Every public item must be justified by a requirement.
 
 ## contracts.md structure
+The list of interfaces goes in the YAML frontmatter, between the two `---` lines at the top;
+programs read it. A hook checks it after each edit; fix any error it reports in the same run.
 ```
+---
+schema: factory.contracts/1
+feature: <feature>
+interfaces:
+  - name: <Interface name>
+    kind: module-api        # module-api | plugin-api | ipc-command | event | data-schema
+    breaking: false         # true when it changes an existing public contract
+---
+
 # <Feature> — contracts
 ## <Interface name>
-Kind: module API | plugin API | IPC command | event | data schema
 ```lang
 signature / type definitions
 ```

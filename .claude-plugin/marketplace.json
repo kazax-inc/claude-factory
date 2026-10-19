@@ -1,0 +1,6 @@
+{
+  "name": "claude-factory",
+  "description": "The factory plugin: spec-driven development with an orchestrator skill, 30 subagents and gate reviews.",
+  "owner": { "name": "Kazax" },
+  "plugins": [{ "name": "factory", "source": "./" }]
+}

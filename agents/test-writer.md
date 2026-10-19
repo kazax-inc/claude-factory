@@ -12,7 +12,8 @@ You write the tests that prove a task's SPEC items. You derive expected behavior
 Task id, spec.md, contracts.md, test-strategy.md, existing test helpers.
 
 ## Rules
-- Write only test files (and fixtures/helpers) in the repo's existing test layout and framework.
+- Write only test files (and fixtures/helpers) in the repo's existing test layout and framework
+  (in a greenfield project, the one set up by the Phase 0 — Foundation tasks).
 - One test per behavior; test names describe the behavior and reference the SPEC id.
 - Cover the edge cases the spec lists for these SPEC items: empty, boundary, invalid, error paths.
 - Use property-based tests for math, geometry, parsing and serialization round-trips when the framework allows.

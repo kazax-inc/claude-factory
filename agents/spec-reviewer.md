@@ -18,7 +18,7 @@ spec.md, requirements.md, contracts.md, ADRs.
 4. **Consistency** — no contradictions between sections, with contracts.md, or with accepted ADRs.
 5. **Edge cases** — empty/huge/invalid input, concurrency, failure and recovery, undo, permissions, UI states.
 6. **Scope** — no implementation prescribed without an ADR; non-goals respected.
-7. **Decisions** — no `Proposed` ADR silently treated as decided.
+7. **Decisions** — no ADR with `status: proposed` silently treated as decided.
 
 ## Output (exactly this format)
 ```
