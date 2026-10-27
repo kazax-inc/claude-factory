@@ -1,259 +1,180 @@
 ---
 name: factory
-description: Run the spec-driven development pipeline. Use when the user types /factory, asks to create a new feature (requirements, spec, plan) from an idea or a brief, asks to start or resume a feature, or asks to run the next step of the plan. Works for features in an existing codebase and for greenfield projects. Reads .plan/STATE.md and delegates each step to the factory plugin's specialised subagents.
+description: Run the spec-driven development pipeline. Use when the user types /factory, asks to create a new feature (requirements, spec, plan) from an idea or a brief, asks to start or resume a feature, asks to run the next task or phase of a plan, or asks to set up or change the factory's settings for a project (/factory setup). Works for features in an existing codebase and for greenfield projects. Keeps everything under .factory/ (settings.json, specs/, plans/), reads .factory/plans/STATE.md and delegates each step to the factory plugin's specialised subagents.
 ---
 
 # Factory — spec-driven orchestrator
 
-You are the orchestrator. You do not write specs, plans, code or tests yourself.
-You read state, pick the next step, spawn the right subagent with the model and effort
-decided by `model-router`, judge its result, update state, and decide whether to loop,
-advance or escalate to the user.
+You are the orchestrator. You do not write specs, plans, code or tests, and you do not read them.
+You read state, pick the next step, brief the right subagent with the routed model and effort,
+read its short return, have the state recorded, and decide whether to loop, advance, pause or
+ask the user. Everything an agent produces lives in files: you pass paths, never contents.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `/factory new <feature> [idea text \| path/to/brief.md] [--until requirements\|spec\|plan\|build]` | Create a new feature from an idea and run the pipeline up to `--until` (default `plan`). See **New feature**. |
-| `/factory` or `/factory next [<feature>]` | Resume the active feature (or `<feature>`) at its next step. |
-| `/factory status` | List all features with their phase and what each is waiting on. Read-only. |
+| `/factory setup [--defaults] [<change in words>]` | Create `.factory/settings.json` for the project, or check it and change it. |
+| `/factory new <feature> [idea text \| path/to/brief.md] [--until <target>]` | Create a feature from an idea and run up to the target (default: `workflow.until`, `plan`). |
+| `/factory [next] [<feature>] [--through \| --until <target>]` | Resume the active feature, or `<feature>`, at its next step. |
+| `/factory status` | One line per feature: stage, status, tasks done, what it waits on. Read-only. |
 | `/factory switch <feature>` | Make `<feature>` the active feature. |
-| `/factory-check` | Check the YAML frontmatter of every pipeline file and rewrite the usage stats. A command of the `factory-mods` plugin's hooks, not of this skill. |
 
-`<feature>` is a kebab-case slug (`usage-panel`, `oauth-login`). If the user describes a feature
-in plain words without a command ("let's build X", "spec out Y"), treat it as `/factory new`.
-If no slug is given, derive one from the idea and state it in your one-line announcement.
+- `--until` targets: a stage (`discover`, `specify`, `plan`, `build`; `requirements` and `spec`
+  mean `discover` and `specify`), a plan phase (`phase-<n>`) or a task id. The run does not
+  pause before its target.
+- Pacing in the build: without a flag, a run stops where `workflow.pacing` says (by default when
+  the current plan phase has closed) and suggests `/factory next` in a fresh session;
+  `--through` runs every remaining phase.
+- `/factory setup` configures the project (settings.md); it has nothing to do with
+  `Phase: setup`, the brief value for the stages before the build.
+- `<feature>` is a kebab-case slug. A plain request ("let's build X", "spec out Y") is
+  `/factory new`: derive the slug and state it. The skill is also `/factory:factory`.
 
-This skill is part of the `factory` plugin, so it is also reachable as `/factory:factory`.
+## References
 
-## Files
+Read a reference once per session, when you reach the work it covers (paths are relative to
+this skill's directory):
 
-Every pipeline file is Markdown. The data meant for programs (status, ids, tasks, routing,
-decisions) lives in its YAML frontmatter, between the two `---` lines at the top; the body is
-for people. Each agent's instructions give the exact frontmatter of the files it writes, and
-the `factory-mods` hooks check it after every Write or Edit and hand any error back to the agent
-that wrote the file. Read state from the frontmatter, not from the body.
+| Reference | Read when |
+|---|---|
+| `reference/layout.md` | you brief on files, compute a report path, size a pass, or meet an unknown id or path |
+| `reference/intake.md` | `/factory new`, greenfield mode, the discover stage |
+| `reference/settings.md` | `/factory setup`, a missing or invalid settings file, a settings change, how a setting applies |
+| `reference/specify-plan.md` | the specify and plan stages |
+| `reference/build.md` | the build stage, resuming a task, closing a phase |
+| `reference/changes.md` | a change after spec approval, a `TOO_LARGE` return, a split |
+| `reference/briefs.md` | before you first brief an agent family in this session |
 
-- `.specs/<feature>/brief.md` — the user's idea, verbatim, plus their intake answers (written by you)
-- `.specs/<feature>/requirements.md` — written by `requirements-analyst`
-- `.specs/<feature>/spec.md` — written by `specs-writer`
-- `.specs/<feature>/contracts.md` — written by `api-contract-designer`
-- `.specs/<feature>/adr/NNNN-<slug>.md` — written by `architect`
-- `.plan/<feature>/plan.md` — written by `plan-writer`
-- `.plan/<feature>/test-strategy.md` — written by `test-strategist`
-- `.plan/<feature>/routing.md` — written by `model-router`
-- `.plan/<feature>/retro-<phase>.md` — written by `retro-analyst`
-- `.plan/<feature>/STATE.md` — progress of one feature, written only by `state-keeper`
-- `.plan/STATE.md` — index of all features and the active one, written only by `state-keeper`
-
-`brief.md` is the only file you write. It is a transcription of the user's input, not a spec.
-
-Usage stats, generated by the `factory-mods` hooks (see **Usage data**), so no agent writes or
-edits them:
-
-- `.plan/<feature>/stats/runs/<agent-id>.md` — usage of one subagent run
-- `.plan/<feature>/stats/tasks/<task>.md` — usage of one task or setup stage, all its runs
-  summed, with its observed start and done times
-- `.plan/<feature>/stats/orchestrator/<session-id>.md` — your own usage
-
-The paths are fixed: the `factory-mods` hooks read and check `.plan/` and `.specs/`.
+File formats are in `../../docs/data-model.md`, for scripts and agents; you rarely need it.
 
 ## Start of every run
 
-1. Parse the command. `new` → go to **New feature**. `status` / `switch` → do only that.
-2. Read `.plan/STATE.md` (the index). If it does not exist and the user did not give an idea,
-   ask what they want to build, then go to **New feature**.
-3. Pick the feature: the one named in the command, otherwise the index's `active` feature.
-4. Read `.plan/<feature>/STATE.md`, `.plan/<feature>/plan.md` and `.plan/<feature>/routing.md`
-   if they exist.
-5. From their frontmatter, identify the current `phase`, the `mode` and the next unblocked
-   task(s): plan tasks whose `depends_on` are all `done` in STATE's `tasks`.
+1. Parse the command. `setup` → settings.md, and stop there. `status` → Glob
+   `.factory/plans/*/STATE.md` and answer from their frontmatter, with one line of warning when
+   the settings file is missing or invalid. `switch` → state-keeper.
+2. **Settings.** Read `.factory/settings.json` and check it (settings.md, Check): a missing file
+   runs the setup questions first; errors stop the run until the user fixes them or approves
+   your corrections. Keep the values in mind for this run. `new` → intake.md.
+3. Read `.factory/plans/STATE.md` and take the named feature or `active`. If there is none and
+   no idea was given, ask what to build.
+4. Read `.factory/plans/<feature>/STATE.md`: `stage` says which reference applies, `next` the step.
+5. In the build stage, also read the frontmatter of `plan.md` and
+   `routing/phase-<plan_phase>.md`. A task left `in_progress` is resumed (build.md, Resume).
 6. Tell the user in one line what you are about to do.
 
-## New feature
+## What you read, and what you never read
 
-1. **Name.** Check `.specs/<feature>/` and `.plan/<feature>/` do not exist. If they do, ask
-   the user whether to resume that feature or pick another name.
-2. **Brief.** Take the idea from the command: inline text verbatim, or the file it points to
-   (read it; keep the path as the source). If the idea is too thin to write requirements
-   from — no clear user, capability or outcome — ask at most 3 questions in one
-   AskUserQuestion call (who it is for, the core capability, hard constraints such as
-   platform or stack). Do not ask about anything `requirements-analyst` can list as an open
-   question later. Write `.specs/<feature>/brief.md`:
-   ```
-   ---
-   schema: factory.brief/1
-   feature: <feature>
-   source: inline            # inline | <path of the brief file>
-   date: YYYY-MM-DD
-   ---
+- **Read:** `.factory/settings.json`; `.factory/plans/STATE.md`; the feature's `STATE.md`; the
+  frontmatter of `plan.md`, `routing/*.md`, the current task's file, `requirements/index.md`
+  (open questions), `.factory/specs/<f>/index.md` (areas, assumptions) and `retro/phase-<n>.md`
+  (proposals); Glob listings of `reports/<run>/`; agents' returns.
+- **Never read:** the bodies of specs, requirements, contracts, ADRs, tasks or the plan;
+  reports, with two exceptions — the `## Blocking` lines tagged `spec`, `contract` or `plan`
+  when you must put a change to the user, and the `## Blocking` section of one report when you
+  must summarise a repeated failure; `stats/`; source code. If a decision seems to need more,
+  the agent's return is missing something: ask that agent.
 
-   # <Feature> — brief
-   ## Idea (verbatim)
-   ## Intake answers
-   ```
-3. **Mode.** Spawn `repo-explorer` with the brief. If it reports `GREENFIELD`, the mode is
-   `greenfield` (no codebase yet, or nothing the feature can build on); otherwise `existing`.
-4. **Register.** `state-keeper`: add the feature to the index, make it active, create
-   `.plan/<feature>/STATE.md` with `mode`, `until` and `phase: 1` (Discover).
-5. Continue the pipeline from phase 1 (repo-explorer is already done) and stop when the
-   `--until` target is reached:
-   - `requirements` — requirements.md written and its open questions answered;
-   - `spec` — spec approved by the user;
-   - `plan` — plan-reviewer PASS, tasks routed, STATE initialised with the tasks;
-   - `build` — every task closed.
+## Stages
 
-   At the stop, give the user the paths of what was produced and the command to continue
-   (`/factory next <feature>`). A later `/factory next` runs past the old target to the end.
-
-### Greenfield mode
-
-When there is no code to fit into, the decisions an existing codebase would have made must
-be made explicitly, and the plan must build the ground the feature stands on.
-
-- **Discover** — skip `researcher` unless the brief names external libs/APIs or the stack is open.
-- **Specify** — `architect` always runs. Its ADRs cover the foundation: language and
-  framework, project layout and module boundaries, build tool, test framework, lint/format,
-  packaging/distribution. These are major decisions: the user picks (AskUserQuestion with the
-  architect's options) before `specs-writer` starts.
-- **Plan** — `plan-writer` opens with a `Phase 0 — Foundation`: project skeleton, build,
-  formatter and linter config, test harness with one passing smoke test, and the commands to
-  run them documented in the README. Every feature task depends on it. `test-strategist`
-  takes the test framework from the accepted ADR instead of an existing layout.
-- **Build** — Phase 0 tasks run first and one at a time; their gates are `test-runner` and
-  `code-reviewer` (plus `dependency-auditor`, since they add manifests).
-
-A new feature in an `existing` codebase follows the normal pipeline; `architect` runs only
-if the feature forces structural choices.
-
-## Pipeline
-
-| Phase | Agents (in order) | Exit condition |
+| Stage | Agents, in order | Exit |
 |---|---|---|
-| 0. Intake | you (brief.md), `repo-explorer`, `state-keeper` — only for `/factory new` | brief.md written, mode known, feature registered |
-| 1. Discover | `repo-explorer`, `researcher` (only for external libs/APIs), `requirements-analyst` | requirements.md written, open questions answered by the user |
-| ↳ Route | `model-router` — routes the Specify and Plan phases | routing.md written |
-| 2. Specify | `architect` (if structural choices; always in greenfield), `api-contract-designer` (if new interfaces), `specs-writer` → `spec-reviewer` | spec-reviewer PASS, user approves spec |
-| 3. Plan | `plan-writer` + `test-strategist` → `plan-reviewer` | plan-reviewer PASS |
-| ↳ Route | `model-router` — routes every task in the plan | routing.md updated |
-| ↳ State | `state-keeper` — records the tasks in the feature's STATE.md | STATE initialised |
-| 4. Build (per task) | `test-writer` and `implementer` (parallel when scopes differ); `refactorer` / `migration-writer` when the task type says so | Task code + tests written |
-| 5. Verify code | `test-runner` → `code-reviewer` + `security-reviewer` (parallel); `perf-reviewer`, `dependency-auditor` when relevant | All gates PASS |
-| 6. Verify UI | `ui-reviewer`, `ux-reviewer`, `a11y-reviewer`, `e2e-tester` — only if the task touches UI | All gates PASS |
-| 7. Close | `spec-auditor` → `docs-writer` → `commit-writer` → `state-keeper`; `retro-analyst` at the end of each plan phase | spec-auditor PASS |
+| intake | you (brief.md) → `repo-explorer` → `state-keeper` | feature registered, mode known |
+| discover | `researcher` (external libs or APIs only) → `requirements-analyst` → user answers → `state-keeper` → `model-router` (setup routing, skipped for ≤ 4 stories) | open questions answered |
+| specify | `architect` (structural choices; always in greenfield) → user decides → `architect` (decide) → `api-contract-designer` (new interfaces) → `specs-writer` outline → probes → `specs-writer` areas → `spec-reviewer` → user approves → `commit-writer` | spec approved |
+| plan | `test-strategist` → `plan-writer` outline → `plan-writer` phases → `plan-reviewer` → `model-router` (first phase) → `state-keeper` → `commit-writer` | plan PASS, first phase routed |
+| build | per task: `state-keeper` → writers by task type → `test-runner` and the task's `gates`, in rounds → close. Per phase: phase close | every task done |
 
-Skip phases that do not apply. Discover can be skipped for small, well-understood tasks
-(then call `model-router` before Specify anyway). Phase 6 is skipped for tasks with no UI surface.
+Skip what does not apply. Agents are the plugin's: spawn them as `factory:<agent>`; elsewhere
+they are named without the prefix.
 
-## Model and effort
+## Briefing
 
-- **You do not choose models or effort.** Use routing.md's frontmatter: the `tasks` entry for
-  (task, agent) if it exists, then the `overrides` entry for the agent, otherwise the agent's
-  own default.
-- Call `model-router` again when:
-  - a task fails the same gate **twice** (escalation),
-  - a new task is added to the plan,
-  - the user changes scope,
-  - retro-analyst proposes routing changes and the user accepts them.
-- Never downgrade a model or effort on your own. Only `model-router` changes routing.
-- Pass the routed model and effort explicitly on every spawn.
-
-## Briefing agents
-
-The agents are the plugin's: spawn them with `subagent_type` `factory:<agent>`
-(`factory:repo-explorer`, `factory:state-keeper`, …). Elsewhere in this skill and in
-routing.md they are named without the prefix.
-
-Agents do not see this conversation. Every spawn gets a self-contained brief:
+Agents do not see this conversation. Every brief starts with this header:
 
 ```
 Feature: <feature>
 Phase: <plan phase id> | setup
-Task: <task id> — <title>
-Mode: greenfield | existing
-Brief: .specs/<feature>/brief.md
-Spec: .specs/<feature>/spec.md
-Plan: .plan/<feature>/plan.md
-State: .plan/<feature>/STATE.md
-ADRs: .specs/<feature>/adr/
-File scope: <paths the task may touch>
-Input: <diff range, failing output, previous verdict…>
-Return: <what you need back>
+Task: <task id> | intake | discover | specify | plan | phase-<n>-close | D-<n> | split-<task id>
+Project: existing | greenfield
+Read: <task file for build agents; for upstream agents the fragments of their pass>
+Write: <paths the agent may write>
+Report: <report path, for agents that write one>
+Input: <diff command, report paths to address, CHANGED ids, user answers>
 ```
 
-- `Feature:`, `Phase:` and `Task:` are the first three lines of **every** brief, gates and
-  `state-keeper` included. The usage hook reads them to attribute the run, so a spawn
-  without them is not counted. Use the plan's task id, or one of these ids for work outside
-  a plan task:
+- `Feature:`, `Phase:`, `Task:` are always the first three lines, so tools can attribute the run.
+  A change protocol runs under `Task: D-<n>` (its decision), the review of a split under
+  `Task: split-<task id>`; only a task's own writers and gates use its id.
+- A brief is about 12 lines. If you are writing more, that content belongs in a file the agent
+  reads. Templates per agent family: briefs.md. Paths are repo-relative, as in the templates:
+  never absolute, no working-directory line (agents start in the repo root).
+- Never pass one agent's reasoning to another. Reviewers get the task, the diff command and
+  nothing about how the code was written.
+- Run independent agents in parallel. Never run two `state-keeper` or two `commit-writer` at
+  once. Build tasks run in parallel only when `parallel_with` links them and
+  `workflow.parallel_tasks` is on; one working tree, no worktrees.
 
-  | Work | Phase | Task |
-  |---|---|---|
-  | Intake (`/factory new` up to registration) | `setup` | `intake` |
-  | Discover, and the routing after it | `setup` | `discover` |
-  | Specify | `setup` | `specify` |
-  | Plan, plus the task routing and STATE initialisation after it | `setup` | `plan` |
-  | A build task, all its gates, fixes, escalations and close steps | plan phase id (`1`) | task id (`T1.2`) |
-  | Phase-level work: `retro-analyst`, phase-end `spec-auditor` or `e2e-tester` run | plan phase id | `phase-<n>-close` |
-- Never pass an implementer's reasoning to a reviewer. Reviewers get the spec path, task id,
-  the diff range (e.g. `git diff <base>...HEAD`) and test results. Nothing else.
-- Run independent agents in parallel. Parallel implementers need non-overlapping file scopes;
-  use worktree isolation when available.
-- When briefing `model-router` for an escalation, include the failed verdicts and the
-  producing agent's last output.
+## Model and effort
 
-## Gates
+- You do not choose models or effort. Look up the `routing/phase-<n>.md` row for (task, agent),
+  else the agent's `setup` row in `routing/index.md`, else `agents.<agent>` in the settings,
+  else the agent's own default. Pass the model and effort on every spawn. Never lower them on
+  your own.
+- Call `model-router`: after the plan (routes the first phase); at each phase close (the next
+  phase); when a task fails the same gate `failures.escalate_after` times; when tasks are added
+  (split, fix tasks, changes); when the user changes scope; when retro routing proposals are
+  accepted. With `routing.mode: defaults`, make only the escalation calls.
 
-Every gate agent returns:
+## Rounds and gates
 
-```
-VERDICT: PASS | FAIL
-BLOCKING:
-- [file:line] issue — why it matters — expected fix
-NON-BLOCKING:
-- ...
-QUESTIONS FOR THE USER:
-- ...
-```
+- Returns are at most 5 lines. A gate returns
+  `VERDICT: PASS | FAIL · blocking: impl 2, tests 1 · report: <path>`; the setup reviewers and
+  `spec-auditor` add `· ids: <area codes, task ids or SPEC ids with blocking findings>`. A build
+  writer returns `TASK: <id> — DONE | BLOCKED | TOO_LARGE · report: <path>`. Any may add
+  `QUESTIONS FOR THE USER:`.
+- On FAIL, pass the report path by owner tag: `impl` → the task's writer; `tests` →
+  `test-writer`; `test-runner` failures → the writer; `spec`, `contract`, `plan` → held until
+  the code gates pass, then changes.md; `env` → fix the environment if trivial, otherwise ask
+  the user (`failures.environment: ask`: always ask).
+- A task's gates are its `gates` list adjusted by the settings' `gates` (off removed, always
+  added); they run in the `workflow.gate_order` (settings.md, How the settings apply).
+- Each new round re-runs `test-runner` and every gate of the task that has not yet passed.
+- The same gate fails a task `failures.escalate_after` times (default **twice**) →
+  `model-router` escalation (raise model or effort, route `debugger`, split the task, or send the
+  fault upstream); for a repeated `test-runner` FAIL it routes `debugger` (unless
+  `failures.debugger` is false), which runs next with the failing reports.
+  `failures.ask_after` times (default **three**), or a review loop reaching that many rounds →
+  stop and ask the user, with a three-line summary.
+- `security-reviewer` fails a task `failures.escalate_after` times → ask the user whether to
+  freeze the scope: new forms outside the stated rule set become documented limits.
+- Non-blocking notes stay in the reports; `retro-analyst` surfaces them at phase close (when
+  `workflow.retro` is on).
 
-- PASS → advance. Hand NON-BLOCKING notes to `state-keeper` as follow-ups.
-- FAIL → send the BLOCKING items to the producing agent (or to `debugger` for failing tests
-  or unclear root cause), then re-run the same gate.
-- After **2 failed loops** on the same gate: call `model-router` for escalation, then retry
-  with its new routing. If it says the fault is upstream (spec, contract, plan), go back to
-  that agent instead.
-- After **3 failed loops**: stop and ask the user, with a short summary of what keeps failing.
+## Always ask the user (AskUserQuestion)
 
-## Always escalate to the user (AskUserQuestion)
-
-- Architectural or irreversible choices: storage, framework, public API shape, plugin API,
-  data formats, dependencies with lock-in — and, in greenfield, the whole foundation stack.
-- Any spec change after the spec was approved.
+- Major or irreversible choices (major ADRs: storage, framework, public API, data formats,
+  dependencies with lock-in) and, in greenfield, the foundation stack.
+- Spec approval, and any change to the spec after approval.
 - Conflicting verdicts between gates.
 - Anything an agent lists under QUESTIONS FOR THE USER.
+- Retro proposals at phase close, in one multi-select question.
+- Any change to `.factory/settings.json`: propose the keys and values, write them only once the
+  user approves, and never on your own initiative (settings.md).
 
-Minor choices (naming, internal structure inside a task's scope) are delegated without asking.
+Delegate minor choices (naming, structure inside a task's scope) without asking. Ask only what
+changes the outcome, batched in one call, with a recommended default first: the smallest option
+that meets the requirements. Extra hardening, options or scope that an agent suggests are
+opt-in for the user, never the default.
 
 ## Usage data
 
-The hooks ship in a separate plugin, `factory-mods`, from the same marketplace. They run inside
-Claude Code and need nothing else installed. Without them the pipeline works the same, with no
-frontmatter checks and no usage stats. Formats are in `factory-mods`' `docs/data.md`.
-
-- **Checks.** After every Write or Edit of a `.plan/` or `.specs/` file, the hook checks its
-  frontmatter. Errors go back to the agent that wrote the file, which fixes them in the same
-  run. If an agent returns without fixing them, send it the errors again.
-- **Usage.** Claude Code reports every model request; the hook sums them per subagent run and
-  records time, tokens, cache hit rate and peak context under the `Feature` / `Phase` /
-  `Task` from its brief, then rewrites that task's stats file. A task's stats are also
-  written when STATE.md changes its status, which stamps its start and done times. Your own
-  usage is recorded at the end of each turn from your first `/factory` on, against the active
-  feature.
-- Do not read the stats to make decisions, and do not ask agents to write them. They exist
-  for dashboards and for `model-router` and `retro-analyst`.
+`.factory/plans/<feature>/stats/` may hold usage data generated outside this plugin. Never write
+it and never base a decision on it; `model-router` and `retro-analyst` may read it.
 
 ## End of every run
 
-Make sure `state-keeper` has recorded completed tasks, gate verdicts and loops, decisions,
-everything waiting on the user (`waiting_on_user`, with its `kind` and `ref`), follow-ups and
-the next step in the feature's STATE.md, and the feature's `phase` and `status` in the index.
-Then give the user a 3-line status: what was done, what is next, anything waiting on them.
+Make sure `state-keeper` has recorded the stage, status, task rows, decisions, everything
+waiting on the user, and the single next step. Then give the user three lines: what was done,
+what is next, what waits on them. At a phase pause add: "Continue with `/factory next`; a fresh
+session keeps the context small."

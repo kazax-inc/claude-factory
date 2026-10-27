@@ -1,0 +1,88 @@
+{
+  "$schema": "https://raw.githubusercontent.com/kazax-inc/claude-factory/main/plugins/factory/docs/schema/settings-1.json",
+  "schema": "factory.settings/1",
+  "agents": {
+    "repo-explorer": { "model": "haiku", "effort": "medium" },
+    "researcher": { "model": "sonnet", "effort": "medium" },
+    "requirements-analyst": { "model": "opus", "effort": "medium" },
+    "architect": { "model": "opus", "effort": "high" },
+    "api-contract-designer": { "model": "opus", "effort": "medium" },
+    "specs-writer": { "model": "opus", "effort": "high" },
+    "spec-reviewer": { "model": "opus", "effort": "medium" },
+    "test-strategist": { "model": "sonnet", "effort": "medium" },
+    "plan-writer": { "model": "opus", "effort": "high" },
+    "plan-reviewer": { "model": "opus", "effort": "medium" },
+    "implementer": { "model": "sonnet", "effort": "medium" },
+    "test-writer": { "model": "sonnet", "effort": "medium" },
+    "refactorer": { "model": "sonnet", "effort": "medium" },
+    "migration-writer": { "model": "opus", "effort": "medium" },
+    "debugger": { "model": "opus", "effort": "high" },
+    "test-runner": { "model": "haiku", "effort": "low" },
+    "code-reviewer": { "model": "opus", "effort": "medium" },
+    "security-reviewer": { "model": "opus", "effort": "high" },
+    "dependency-auditor": { "model": "sonnet", "effort": "medium" },
+    "perf-reviewer": { "model": "sonnet", "effort": "medium" },
+    "ui-reviewer": { "model": "sonnet", "effort": "medium" },
+    "ux-reviewer": { "model": "opus", "effort": "medium" },
+    "a11y-reviewer": { "model": "sonnet", "effort": "medium" },
+    "spec-auditor": { "model": "opus", "effort": "medium" },
+    "e2e-tester": { "model": "sonnet", "effort": "medium" },
+    "docs-writer": { "model": "sonnet", "effort": "medium" },
+    "commit-writer": { "model": "haiku", "effort": "low" },
+    "retro-analyst": { "model": "sonnet", "effort": "medium" },
+    "model-router": { "model": "opus", "effort": "high" },
+    "state-keeper": { "model": "haiku", "effort": "low" }
+  },
+  "routing": {
+    "mode": "auto"
+  },
+  "workflow": {
+    "until": "plan",
+    "pacing": "phase",
+    "parallel_tasks": true,
+    "gate_order": "parallel",
+    "docs": true,
+    "retro": true
+  },
+  "failures": {
+    "escalate_after": 2,
+    "ask_after": 3,
+    "debugger": true,
+    "environment": "fix-trivial"
+  },
+  "security": {
+    "exposure": "public",
+    "checks": {
+      "untrusted_input": true,
+      "injection": true,
+      "privilege": true,
+      "filesystem": true,
+      "secrets": true,
+      "memory_safety": true,
+      "denial_of_service": true,
+      "dependencies": true
+    }
+  },
+  "tests": {
+    "depth": "standard",
+    "levels": {
+      "unit": true,
+      "property": true,
+      "integration": true,
+      "e2e": true,
+      "visual": true
+    }
+  },
+  "gates": {
+    "security-reviewer": "auto",
+    "dependency-auditor": "auto",
+    "perf-reviewer": "auto",
+    "ui-reviewer": "auto",
+    "ux-reviewer": "auto",
+    "a11y-reviewer": "auto",
+    "spec-auditor": "auto"
+  },
+  "project": {
+    "commands": {}
+  }
+}

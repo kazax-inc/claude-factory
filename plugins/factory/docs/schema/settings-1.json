@@ -1,0 +1,559 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kazax-inc/claude-factory/main/plugins/factory/docs/schema/settings-1.json",
+  "title": "Factory project settings",
+  "description": "Settings of the factory plugin for one project, in .factory/settings.json. Written by you, or by the /factory orchestrator when you ask for or approve a change. Missing keys take the default shown here. Reference: plugins/factory/skills/factory/reference/settings.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema of this file, for editor completion and checks."
+    },
+    "schema": {
+      "const": "factory.settings/1",
+      "description": "Format version of this file."
+    },
+    "agents": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Default model and effort of each agent. model-router routes a task away from these only when the task calls for it; with routing.mode \"defaults\" agents always run at these values.",
+      "properties": {
+        "repo-explorer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "haiku",
+            "effort": "medium"
+          }
+        },
+        "researcher": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "requirements-analyst": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "medium"
+          }
+        },
+        "architect": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "high"
+          }
+        },
+        "api-contract-designer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "medium"
+          }
+        },
+        "specs-writer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "high"
+          }
+        },
+        "spec-reviewer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "medium"
+          }
+        },
+        "test-strategist": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "plan-writer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "high"
+          }
+        },
+        "plan-reviewer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "medium"
+          }
+        },
+        "implementer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "test-writer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "refactorer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "migration-writer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "medium"
+          }
+        },
+        "debugger": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "high"
+          }
+        },
+        "test-runner": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "haiku",
+            "effort": "low"
+          }
+        },
+        "code-reviewer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "medium"
+          }
+        },
+        "security-reviewer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "high"
+          }
+        },
+        "dependency-auditor": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "perf-reviewer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "ui-reviewer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "ux-reviewer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "medium"
+          }
+        },
+        "a11y-reviewer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "spec-auditor": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "medium"
+          }
+        },
+        "e2e-tester": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "docs-writer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "commit-writer": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "haiku",
+            "effort": "low"
+          }
+        },
+        "retro-analyst": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "sonnet",
+            "effort": "medium"
+          }
+        },
+        "model-router": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "high"
+          }
+        },
+        "state-keeper": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "haiku",
+            "effort": "low"
+          }
+        }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "auto",
+            "defaults"
+          ],
+          "default": "auto",
+          "description": "auto: model-router adapts model and effort to each task. defaults: agents always run at their agents values; model-router runs only to escalate a task that keeps failing."
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "until": {
+          "enum": [
+            "discover",
+            "specify",
+            "plan",
+            "build"
+          ],
+          "default": "plan",
+          "description": "Where /factory new stops when no --until is given. build runs every phase without pausing."
+        },
+        "pacing": {
+          "enum": [
+            "task",
+            "phase",
+            "all"
+          ],
+          "default": "phase",
+          "description": "Where a build run pauses: after each task (a parallel batch counts as one), after each plan phase, or never. --through and --until override it for one run."
+        },
+        "parallel_tasks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run tasks the plan marks parallel_with side by side. false: one task at a time."
+        },
+        "gate_order": {
+          "enum": [
+            "parallel",
+            "sequential"
+          ],
+          "default": "parallel",
+          "description": "After test-runner passes: run the other gates side by side (faster), or one at a time, ending the round at the first FAIL (cheaper)."
+        },
+        "docs": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run docs-writer when a task that changes documented behavior closes. Tasks of type docs always run."
+        },
+        "retro": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run retro-analyst at each phase close. false also skips the review of the non-blocking notes it surfaces."
+        }
+      }
+    },
+    "failures": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "escalate_after": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9,
+          "default": 2,
+          "description": "FAILs of the same gate on a task before model-router escalates it (stronger model or effort, debugger, split, or an upstream fix), and before a repeated security FAIL asks you to freeze the scope. Must be lower than ask_after."
+        },
+        "ask_after": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10,
+          "default": 3,
+          "description": "FAILs of the same gate on a task, or rounds of the same review loop, before the factory stops and asks you."
+        },
+        "debugger": {
+          "type": "boolean",
+          "default": true,
+          "description": "Escalating a repeated test-runner FAIL routes the debugger. false: escalation picks another remedy."
+        },
+        "environment": {
+          "enum": [
+            "fix-trivial",
+            "ask"
+          ],
+          "default": "fix-trivial",
+          "description": "Failures caused by tooling or the environment: fix them when trivial and ask otherwise, or always ask."
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exposure": {
+          "enum": [
+            "private",
+            "internal",
+            "public"
+          ],
+          "default": "public",
+          "description": "Who can reach the software. private: only you or your team, no untrusted input. internal: trusted users, for example on a company network. public: the internet, or people you do not know. The security review weighs exploits against it; /factory setup uses it to preset checks."
+        },
+        "checks": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "What the security review looks for. A finding in a disabled family is at most a non-blocking note.",
+          "properties": {
+            "untrusted_input": {
+              "type": "boolean",
+              "default": true,
+              "description": "Files, clipboard, URLs, IPC payloads, plugin input, imported documents."
+            },
+            "injection": {
+              "type": "boolean",
+              "default": true,
+              "description": "Shell, SQL, path traversal, HTML or script in rendered content, format strings."
+            },
+            "privilege": {
+              "type": "boolean",
+              "default": true,
+              "description": "Commands, endpoints, capabilities or permissions broader than needed."
+            },
+            "filesystem": {
+              "type": "boolean",
+              "default": true,
+              "description": "Writes outside intended directories, symlinks, temp-file races, permissions."
+            },
+            "secrets": {
+              "type": "boolean",
+              "default": true,
+              "description": "Keys or tokens in code, logs, errors or config."
+            },
+            "memory_safety": {
+              "type": "boolean",
+              "default": true,
+              "description": "unsafe blocks, FFI, unchecked indexing, integer overflow on sizes."
+            },
+            "denial_of_service": {
+              "type": "boolean",
+              "default": true,
+              "description": "Unbounded loops, recursion or allocation driven by untrusted input."
+            },
+            "dependencies": {
+              "type": "boolean",
+              "default": true,
+              "description": "Advisories, maintenance and install scripts of new dependencies."
+            }
+          }
+        }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "depth": {
+          "enum": [
+            "minimal",
+            "standard",
+            "thorough"
+          ],
+          "default": "standard",
+          "description": "minimal: one test case per spec item (main path and main error). standard: each item and the edge cases its criteria list. thorough: also boundaries, adversarial inputs, and property tests wherever they fit."
+        },
+        "levels": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Test levels the factory may use; at least one must be true. Items only a disabled level could prove are listed as untested.",
+          "properties": {
+            "unit": {
+              "type": "boolean",
+              "default": true,
+              "description": "Pure logic, in isolation."
+            },
+            "property": {
+              "type": "boolean",
+              "default": true,
+              "description": "Generated inputs for math, parsers and round-trips."
+            },
+            "integration": {
+              "type": "boolean",
+              "default": true,
+              "description": "Module boundaries, IPC, the real entry point."
+            },
+            "e2e": {
+              "type": "boolean",
+              "default": true,
+              "description": "User flows through the running app; false also skips the phase-close acceptance run."
+            },
+            "visual": {
+              "type": "boolean",
+              "default": true,
+              "description": "Rendering snapshots."
+            }
+          }
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "When each optional gate runs: off (never), auto (on tasks that match its trigger), always (on every task with production code). test-runner and code-reviewer always run.",
+      "properties": {
+        "security-reviewer": {
+          "$ref": "#/$defs/gateMode",
+          "description": "Security review of the diff, limited to the families enabled in security.checks. auto: tasks that handle external input, files, IPC, network, permissions or secrets."
+        },
+        "dependency-auditor": {
+          "$ref": "#/$defs/gateMode",
+          "description": "Audit of added or upgraded dependencies. auto: tasks that change a manifest or lockfile."
+        },
+        "perf-reviewer": {
+          "$ref": "#/$defs/gateMode",
+          "description": "Performance review of hot paths. auto: tasks that implement an NFR performance item."
+        },
+        "ui-reviewer": {
+          "$ref": "#/$defs/gateMode",
+          "description": "Visual review against the spec and design system. auto: tasks that change UI."
+        },
+        "ux-reviewer": {
+          "$ref": "#/$defs/gateMode",
+          "description": "Interaction design review. auto: tasks that change UI."
+        },
+        "a11y-reviewer": {
+          "$ref": "#/$defs/gateMode",
+          "description": "Accessibility review. auto: tasks that change UI."
+        },
+        "spec-auditor": {
+          "$ref": "#/$defs/gateMode",
+          "description": "Spec drift check on a task. auto: size M tasks and tasks that touch a contract. The phase-close audit always runs."
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "commands": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "description": "The project's commands, when you want to fix them. Empty: test-strategist finds them for each feature.",
+          "properties": {
+            "build": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Build."
+            },
+            "format": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Formatter check."
+            },
+            "lint": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Linter."
+            },
+            "typecheck": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Type check."
+            },
+            "test": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Full test run."
+            },
+            "test_one": {
+              "type": "string",
+              "minLength": 1,
+              "description": "One test file; <file> stands for its path."
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "effort"
+      ],
+      "properties": {
+        "model": {
+          "enum": [
+            "haiku",
+            "sonnet",
+            "opus"
+          ],
+          "description": "haiku: mechanical work with deterministic checks. sonnet: well-specified local work. opus: judgement, design, hard reasoning."
+        },
+        "effort": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "description": "Reasoning effort; low only for mechanical work."
+        }
+      }
+    },
+    "gateMode": {
+      "enum": [
+        "off",
+        "auto",
+        "always"
+      ],
+      "default": "auto"
+    }
+  }
+}
