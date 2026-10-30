@@ -25,7 +25,7 @@ Your brief lists one event per line. Apply all of them, then set `updated` to to
 | `phase_base "<sha>"` | set `phase_base`, quoted |
 | `task <id> done` | also count `loops`: the rounds in `.factory/plans/<f>/reports/<id>/` holding at least one gate report with `verdict: FAIL` (Grep `^verdict: FAIL` there; the round is the number at the end of each file name) |
 | `user_round <id>` | add 1 to the row's `user_rounds` |
-| `decision by=<user\|orchestrator> ref=<id> "<text>" affects=[…]` | append `D-<next n>` to `decisions.md` (create it if missing), `status: active`; remove any `waiting_on_user` item with the same `ref` |
+| `decision by=<user\|orchestrator\|decision> ref=<id> "<text>" affects=[…] [supersedes=AD-<j>]` | append `D-<next n>` to `decisions.md` (create it if missing), `status: active`; remove any `waiting_on_user` item with the same `ref`. When `ref` is an `AD-<n>`, an active decision with that same `ref` is superseded by the new one; with `supersedes=AD-<j>`, so is the active decision whose `ref` is `AD-<j>` |
 | `affects D-<n> [<ids>]` | add the ids to D-n's `affects` |
 | `supersede D-<n> by D-<m>` | set D-n `status: superseded`, `superseded_by: D-<m>` |
 | `waiting add kind=<k> ref=<id> task=<id> "<text>"` · `waiting remove ref=<id>` | add (with `since` today) or remove a `waiting_on_user` item |
@@ -94,8 +94,9 @@ decisions:
 # Decisions — <feature>
 ```
 
-`by`: `user | orchestrator`. `ref`: what it answers (`Q<n>`, `AS-<n>`, `ADR-NNNN`, a task id).
-Add `superseded_by: D-<n>` when superseded.
+`by`: `user | orchestrator | decision`. `ref`: what it answers (`Q<n>`, `AS-<n>`, `ADR-NNNN`, a
+task id, `P<n>`, `AD-<n>`). Add `superseded_by: D-<n>` when superseded. You never write
+`decision-log.md`: the `decision` agent does.
 
 ## Frontmatter rules
 

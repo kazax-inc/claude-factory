@@ -169,7 +169,7 @@ superseded_by: null
 
 | key | type | notes |
 |---|---|---|
-| impact | enum | `minor` (internal, reversible; decided by the architect) or `major` (decided by the user) |
+| impact | enum | `minor` (internal, reversible; decided by the architect), `major` (decided by the `decision` agent, or by the user with `workflow.decisions: user`) or `foundation` (the greenfield stack: language and framework, layout, build, test, lint and format tools, packaging; always decided by the user) |
 | status | enum | `proposed \| accepted \| rejected \| superseded` |
 | options | `list<{id, title: text}>` | |
 | recommendation, chosen | `id?` | an option id |
@@ -421,13 +421,44 @@ decisions:
 
 | key | type | notes |
 |---|---|---|
-| by | enum | `user \| orchestrator` |
-| ref | `id?` | what it answers: `Q<n>`, `AS-<n>`, `ADR-<NNNN>`, a task id |
+| by | enum | `user \| orchestrator \| decision` (the `decision` agent) |
+| ref | `id?` | what it answers: `Q<n>`, `AS-<n>`, `ADR-<NNNN>`, a task id, `P<n>`, or `AD-<n>` (an entry of `decision-log.md`: the agent's answer, or the user's answer to an escalation or an override of it) |
 | affects | `list<id>` | ids it changes, filled from the change protocol's CHANGED list when known |
 | status | enum | `active \| superseded` |
 | superseded_by | `id?` | |
 
-ADR choices are recorded in the ADR itself, not here.
+ADR choices are recorded in the ADR itself, not here. A decision whose `ref` is an `AD-<n>`
+supersedes the active decision with the same `ref` (a user's override of the agent's answer).
+
+### <feature>/decision-log.md — `factory.decision-log/2`
+
+Written only by the `decision` agent: every question it answered or escalated after discover,
+for the user to review and override (`/factory decisions`, `/factory override`).
+
+```yaml
+schema: factory.decision-log/2
+feature: <feature>
+entries:
+  - {id: AD-1, date: 2026-01-31, run: specify, kind: adr, asked_by: architect, ref: ADR-0002, question: "Where are tab layouts stored?", choice: "B — SQLite through the existing db module", outcome: decided, status: active}
+  - {id: AD-2, date: 2026-02-03, run: T1.3, kind: questions, asked_by: implementer, ref: SPEC-GIT-4, question: "Is a missing remote an error?", choice: null, outcome: escalated, status: active}
+```
+
+| key | type | notes |
+|---|---|---|
+| run | id | the run that raised the question: `specify`, `plan`, a task id, `phase-<n>-close`, `D-<n>`, `override-AD-<n>` |
+| kind | enum | `adr \| questions \| change \| approval \| conflict \| stuck \| freeze \| retro \| override` |
+| asked_by | agent | the agent whose return or report raised it (bare, without `factory:`), or `orchestrator` |
+| ref | `id?` | the id it answers: an ADR, SPEC, AS, task, P or AD id |
+| question | text | one line |
+| choice | `text?` | the answer in one line; `null` when escalated |
+| outcome | enum | `decided \| escalated` |
+| status | enum | `active \| overridden \| superseded` |
+| superseded_by | `id?` | the `AD-<n>` that replaced it |
+
+Body: `# Decision log — <feature>`, then one `## AD-<n> — <question>` section per entry (≤ 12
+lines): `Asked by` · run · ref · source path, `Options`, `Decision` (or `Escalated` with the
+reason), `Why` (≤ 4 lines), `Applied by`, and the `Overridden …` or `Superseded by …` line added
+later. Entries are never deleted or renumbered.
 
 ### <feature>/reports/<run>/<file>.md — `factory.report/2`
 
@@ -491,6 +522,8 @@ Everything below comes from frontmatter alone.
 - **Gate history** — report frontmatter under `reports/<task>/`: `verdict` per agent and round.
 - **Loops** — STATE `loops`; FAILs per gate from the reports.
 - **Stage strip** — STATE `stage` in the order `intake → discover → specify → plan → build → done`.
+- **Decisions made for the user** — `decision-log.md` `entries` by `outcome` and `status`;
+  overridden ones also have a `decisions.md` row `by: user` whose `ref` is their id.
 - **Routing per task** — `routing/phase-<n>.md` rows, with the lookup order above (it needs
   `.factory/settings.json` and the agents' frontmatter for the runs without a row).
 
@@ -502,7 +535,10 @@ it at the start of every `/factory` run (rules in
 [`reference/settings.md`](../skills/factory/reference/settings.md)). It has no `feature` key.
 `/factory setup` writes it from [`templates/settings.json`](../skills/factory/templates/settings.json);
 editors check it against [`schema/settings-1.json`](schema/settings-1.json). A missing key takes
-the template's value, which reproduces the factory's behavior without settings.
+the template's value, which reproduces the factory's behavior without settings. When a newer
+plugin adds keys, its session-start hook (`hooks/register.ts`) writes them into an existing file
+with their template values, in the template's order and layout, keeping every other value; the
+orchestrator's check does the same when the hook did not run.
 
 | key | type | default | notes |
 |---|---|---|---|
@@ -514,6 +550,7 @@ the template's value, which reproduces the factory's behavior without settings.
 | workflow.pacing | enum | `phase` | where a build run pauses without a flag: `task \| phase \| all` |
 | workflow.parallel_tasks | bool | `true` | run `parallel_with` tasks together |
 | workflow.gate_order | enum | `parallel` | `parallel \| sequential` (one gate at a time, the round ends at the first FAIL) |
+| workflow.decisions | enum | `agent` | `agent \| user`: who answers the decision points after discover; `agent` logs each answer in `decision-log.md` and escalates what needs the user |
 | workflow.docs | bool | `true` | docs-writer at the close of `docs: true` tasks |
 | workflow.retro | bool | `true` | retro-analyst at phase close |
 | failures.escalate_after | int | `2` | 1–9, below `ask_after`: same-gate FAILs before escalation |

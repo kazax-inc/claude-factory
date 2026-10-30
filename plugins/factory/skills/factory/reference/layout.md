@@ -10,7 +10,7 @@ Every file has exactly one writer. No two agents edit the same file at the same 
 
 ```
 .factory/                                 writer                  holds
-  settings.json                           the user; orchestrator  project settings (the one JSON file; reference/settings.md)
+  settings.json                           the user; orchestrator  project settings (the one JSON file; reference/settings.md); new keys also by hooks/register.ts
   specs/<feature>/
     index.md          ENTRYPOINT          specs-writer            summary, areas, assumptions, open issues, how to read the spec
     brief.md                              orchestrator            the user's idea verbatim + intake answers
@@ -35,7 +35,8 @@ Every file has exactly one writer. No two agents edit the same file at the same 
       test-strategy/<area>.md             test-strategist         test cases for one spec area (TC-<AREA>-n)
       routing/index.md                    model-router            setup-stage routing, accepted rules, escalations
       routing/phase-<n>.md                model-router            deviations from the settings' model and effort, per task and agent, for one plan phase
-      decisions.md                        state-keeper            user and orchestrator decisions (D-n)
+      decisions.md                        state-keeper            decisions of the user, the orchestrator and `decision` (D-n)
+      decision-log.md                     decision                each question `decision` answered or escalated: options, answer, reasons (AD-n)
       reports/<run>/<file>.md             the reporting agent     one report per agent run (see Reports)
       probes/AS-<n>/                      test-writer             scratch code of one probe
       retro/phase-<n>.md                  retro-analyst           retrospective of one plan phase
@@ -43,7 +44,8 @@ Every file has exactly one writer. No two agents edit the same file at the same 
 ```
 
 The orchestrator writes `brief.md`, and `settings.json` only when the user asks for or approves a
-change (settings.md). The repo's own code and tests are written by the build agents inside a
+change, or to add the keys a newer plugin introduced (settings.md, Check). The plugin's
+session-start hook adds those keys first; it writes nothing else. The repo's own code and tests are written by the build agents inside a
 task's `scope` and `tests`; docs by docs-writer, in the paths its brief names.
 
 **Indexes and Grep.** The two entrypoints (`.factory/specs/<f>/index.md`, `.factory/plans/<f>/plan.md`) and the
@@ -78,6 +80,7 @@ what fragments already declare, Grep their frontmatter instead:
 | test case | `TC-<AREA>-<n>` | `TC-GIT-1` | `test-strategy/git.md` |
 | infrastructure item | `INF-<n>` | `INF-2` | `test-strategy/index.md` |
 | decision | `D-<n>` | `D-12` | `decisions.md` |
+| agent decision | `AD-<n>` | `AD-4` | `decision-log.md` (not in the id block: agents act on the `D-n` it leads to) |
 | retro proposal | `P<n>` | `P2` | `retro/phase-<n>.md` (ids restart in each retro) |
 | routing rule | `R<n>` | `R1` | `routing/index.md` |
 
@@ -126,13 +129,14 @@ A build agent's reading list is derived from its task file; no file stores it. G
 
 `.factory/settings.json` belongs to the pack of every agent whose prompt names a settings key
 (test-strategist, test-writer, code-reviewer, security-reviewer, e2e-tester, model-router,
-retro-analyst); each reads only the keys its prompt names.
+retro-analyst, decision); each reads only the keys its prompt names.
 
 `spec/glossary.md` is read only when a term is unclear. An agent that needs a file outside its
 pack may open it and names it as `PACK GAP: <path>` in its report, so the plan can be fixed.
 
-Upstream agents (specs-writer, plan-writer, reviewers, model-router, retro-analyst) navigate from
-the entrypoints and indexes, and their brief names the fragments of their pass.
+Upstream agents (specs-writer, plan-writer, reviewers, model-router, retro-analyst, decision)
+navigate from the entrypoints and indexes, and their brief names the fragments of their pass
+(`decision`: the material of its decision point).
 
 ## Reports
 

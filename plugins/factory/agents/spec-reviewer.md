@@ -61,7 +61,7 @@ On a re-check your brief names your previous report: confirm each blocking item 
 
 **Proportion.** Judge the spec against the requirements, the user's decisions and the risks the
 feature itself states. Hardening, extra edge cases or capabilities beyond them are non-blocking
-(add a question when the user should decide), never blocking: the spec must be right, not
+(add a question when they deserve a decision), never blocking: the spec must be right, not
 maximal. From round 3 on, block only on items your previous report raised that are still
 unresolved, or on defects the revision introduced.
 

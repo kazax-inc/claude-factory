@@ -4,16 +4,20 @@ Brief templates: briefs.md.
 
 ## Change protocol (Phase: <current plan phase> | setup, Task: D-<n>)
 
-Use it for any change to approved artifacts: a user decision that changes behavior, a
-contradicted probe, `spec` / `contract` / `plan` findings from a gate or an audit (after the
+Use it for any change to approved artifacts: a decision that changes behavior (the user's, an
+override of one made for them, or `decision`'s), a contradicted probe, `spec` / `contract` / `plan` findings from a gate or an audit (after the
 task's code gates passed), hard-to-test items the user wants fixed.
 
-1. **Decide** — put the change to the user (for findings, from the report's `## Blocking` lines
-   tagged `spec`, `contract`, `plan`), unless it only corrects the spec to match behavior the
-   user already approved. `state-keeper` records the decision `D-<n>`. Every run below uses
-   `Task: D-<n>`, so its reports go to `reports/D-<n>/`.
-2. **Revise in order**, each step only if affected, each given the decision id, the report paths
-   that triggered it, and the `CHANGED` ids returned by the step before:
+1. **Decide** — a `change` decision point (decisions.md): `decision` gets the report paths, or
+   the user gets the report's `## Blocking` lines tagged `spec`, `contract`, `plan` with
+   `workflow.decisions: user`. Skip it when the change only corrects the spec to match behavior
+   already approved, and when it comes from a user's override (decisions.md, Override).
+   `state-keeper` records the decision `D-<n>` (`by=decision` or `by=user`). Every run below
+   uses `Task: D-<n>`, so its reports go to `reports/D-<n>/`. A rejected change runs nothing
+   below: the finding goes back to the task's writer.
+2. **Revise in order**, each step only if affected (the `CHANGE` line of `decision`, when it
+   decided), each given the decision id, the report paths that triggered it, and the `CHANGED`
+   ids returned by the step before:
    1. `architect` — amend mode (a new ADR with `amends:`), or decide mode;
    2. `api-contract-designer` — revise mode;
    3. `specs-writer` — revise mode, only the areas involved;
@@ -31,7 +35,8 @@ task's code gates passed), hard-to-test items the user wants fixed.
    in progress whose files changed picks them up at its next round.
 6. **Commit** — `commit-writer`: `Files:` = the files steps 1–5 changed under `.factory/specs/<f>/` and
    `.factory/plans/<f>/` (from the returns), `reports/D-<n>/`, `.factory/plans/<f>/STATE.md`,
-   `.factory/plans/<f>/decisions.md`, as `docs(<f>): D-<n>`.
+   `.factory/plans/<f>/decisions.md`, `.factory/plans/<f>/decision-log.md` (when `decision`
+   ran), as `docs(<f>): D-<n>`.
 
 A task whose own findings started the change closes after step 3, with `spec-auditor` re-run.
 

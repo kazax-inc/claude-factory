@@ -21,7 +21,8 @@ as you need:
 3. the FAIL reports' `## Blocking` sections only, and the writers' reports with `TOO_LARGE`,
    `PACK GAP` or `Extra surface` entries (Grep for them);
 4. `.factory/plans/<f>/routing/index.md` (escalations, rules) and `routing/phase-<n>.md`;
-5. the decisions of the phase in `.factory/plans/<f>/decisions.md`;
+5. the decisions of the phase in `.factory/plans/<f>/decisions.md`, and the frontmatter rows of
+   `.factory/plans/<f>/decision-log.md` (the questions the decision agent answered or escalated);
 6. `git log <base>..HEAD --stat`;
 7. usage data in `.factory/plans/<f>/stats/` if it exists (time, tokens, cache hit rate, peak
    context per task and agent); never write it;
@@ -42,6 +43,10 @@ as you need:
    that escaped because a gate, a security check or a test level was off.
 7. Time and token sinks, from the stats when they exist, never from estimates.
 8. Non-blocking notes that recur across tasks and deserve a task.
+9. Decision fit: entries the user overrode (`decisions.md` rows `by: user` whose `ref` is an
+   `AD-<n>`), escalations that the record could have settled, decisions that caused later
+   loops. A pattern is a `plugin` proposal for `agents/decision.md`, or a `plan` one when a
+   missing convention keeps raising the same question.
 
 ## retro/phase-<n>.md
 

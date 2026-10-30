@@ -53,6 +53,8 @@ wrong costs more than a stronger model that one-shots the task.
   only when the task should run it at another model or effort than its default. Whether a
   test-writer runs follows from the task's `tests`, not from your rows.
 - Never list `debugger` up front; it is routed at escalation.
+- Never list `decision`: it always runs at its default, because a weak decision costs every
+  agent downstream of it.
 - List a gate only when it should run above its default.
 - Security-sensitive parsers, denylists and sanitizers: implementer at opus/high from the start.
 - Tests of boundaries and adversarial inputs (cuts, caps, redaction, parser edges): test-writer
