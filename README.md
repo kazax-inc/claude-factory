@@ -1,15 +1,17 @@
 # claude-factory
 
 Spec-driven development for [Claude Code](https://claude.com/claude-code), packaged as the
-Claude Code plugin `factory`: one orchestrator skill (`/factory`) and 30 specialised subagents
+Claude Code plugin `factory`: one orchestrator skill (`/factory`) and 31 specialised subagents
 that take a feature from a rough idea to reviewed, tested and committed code.
 
 Every step writes small Markdown files — one per user story, spec area, interface, decision
 and plan task — whose YAML frontmatter holds the data programs read. Each agent loads only the
 fragments its step needs, found from two entrypoints and ids that resolve to files by rule, so
 context stays small however large the feature grows. Every deliverable passes through a gate
-agent that returns `PASS` / `FAIL`, and the orchestrator loops, escalates or asks you instead
-of guessing.
+agent that returns `PASS` / `FAIL`, and the orchestrator loops or escalates instead of guessing.
+Once you have defined the work, a `decision` agent answers the pipeline's questions for you
+and logs each answer with its reasons, so you can review it and override it. It asks you only
+what needs your judgement.
 
 - [Install](#install)
 - [Usage](#usage)
@@ -59,6 +61,8 @@ skip it, `/factory new` asks the same questions the first time.
 | `/factory` or `/factory next [<feature>] [--through \| --until <target>]` | Resumes the active feature (or `<feature>`) at its next step. |
 | `/factory status` | Lists every feature with its stage, tasks done and what it is waiting on. Read-only. |
 | `/factory switch <feature>` | Makes `<feature>` the active feature. |
+| `/factory decisions [<feature>]` | Lists the decisions the `decision` agent made for you: question, answer, status. Read-only. |
+| `/factory override <AD-n> [<answer>]` | Replaces one of those decisions with yours ("change AD-4 to B" works too) and updates the spec, plan and tasks it affects. |
 
 `<feature>` is a kebab-case slug. Saying "let's build X" or "spec out Y" without a command is
 treated as `/factory new`; the orchestrator derives the slug and tells you. The skill is also
@@ -118,18 +122,34 @@ feature forces structural choices.
 
 ### When you will be asked
 
-The orchestrator stops and asks (never guesses) for:
+You define the work; the factory asks you (never guesses) for:
 
-- architectural or irreversible choices — storage, framework, public API, plugin API, data
-  formats, lock-in dependencies, and the whole stack in greenfield mode;
-- approval of the spec, and any spec change after approval;
-- conflicting verdicts between gates;
-- anything an agent lists under `QUESTIONS FOR THE USER`;
-- a gate that still fails after 3 rounds, and a scope freeze after a second security failure
-  (both counts are `failures` settings);
+- the idea, and up to 3 questions when it is too thin to write requirements from;
+- the open questions of the requirements, and splitting a very large feature into several,
+  once, with "keep as one" as the default;
+- the whole stack in greenfield mode (language, framework, layout, build, test and lint tools,
+  packaging);
 - any change to `.factory/settings.json`: it proposes, you approve;
-- splitting a very large feature into several, once, with "keep as one" as the default;
-- which retro proposals to apply, at the close of each plan phase.
+- environment problems it cannot fix inside the repo.
+
+From the spec on, the **`decision` agent** (opus / xhigh) answers the other questions for you:
+major architecture choices (storage, public API, data formats, dependencies), the spec
+approval, anything an agent lists under `QUESTIONS FOR THE USER`, changes to the spec after
+approval, conflicting gate verdicts, a gate that still fails after 3 rounds, a scope freeze
+after a second security failure, and which retro proposals to apply. It decides from the whole
+project (requirements, spec, plan, code), picks the option that best serves correctness,
+quality, performance, testability and modularity with later phases in mind, never the lazy one
+and never an over-engineered one, and never accepts a regression. It escalates to you what needs
+your judgement: a change to the scope you set, anything that contradicts one of your decisions,
+money, licenses or systems outside the repo, accepting a loss or a risk, or a fact only you
+know. A loop still stuck after its ruling comes back to you too.
+
+Every question and answer, with its options and reasons, goes to
+`.factory/plans/<feature>/decision-log.md`. Each run ends with a line naming the decisions made
+for you. Review them with `/factory decisions`, and change one with `/factory override AD-4 B`:
+the agent checks the consequences, revisits the decisions that depended on it, and the change
+runs through the spec, plan and tasks it affects. Set `workflow.decisions` to `"user"` to
+answer every question yourself.
 
 Minor choices (naming, internal structure inside a task's scope) are delegated without asking.
 
@@ -139,7 +159,7 @@ Minor choices (naming, internal structure inside a task's scope) are delegated w
 |---|---|---|
 | intake | orchestrator (`brief.md`), `repo-explorer`, `state-keeper` — `/factory new` only | brief written, mode known, feature registered |
 | discover | `researcher`*, `requirements-analyst`, then `model-router` (setup routing)* | requirements written, open questions answered |
-| specify | `architect`*, `api-contract-designer`*, `specs-writer` (outline, probes*, areas) → `spec-reviewer` | spec-reviewer PASS, you approve the spec |
+| specify | `architect`*, `decision` (major ADRs)*, `api-contract-designer`*, `specs-writer` (outline, probes*, areas) → `spec-reviewer` → `decision` (approval) | spec-reviewer PASS, the spec approved |
 | plan | `test-strategist` → `plan-writer` (outline, one pass per phase) → `plan-reviewer`; `model-router` routes the first phase; `state-keeper` | plan-reviewer PASS |
 | build *(per task)* | writers by task type (`test-writer` ∥ `implementer`, `refactorer`, `migration-writer`, `docs-writer`) → `test-runner` → the task's gates → `docs-writer`*, `state-keeper`, `commit-writer` | all the task's gates PASS |
 | phase close | `spec-auditor` per area batch, `e2e-tester`*, `retro-analyst`, `model-router` routes the next phase | audit PASS, then pause |
@@ -169,14 +189,14 @@ flowchart TD
     R1 --> S1{{"stop if --until discover"}}
 
     S1 --> ARCH{"Structural choices<br/>or greenfield?"}
-    ARCH -- yes --> ADR["architect → ADRs"] --> PICK[/"You pick major ADRs"/] --> DEC["architect: decide"] --> CONTRACT
+    ARCH -- yes --> ADR["architect → ADRs"] --> PICK["decision picks major ADRs<br/>you pick the greenfield stack"] --> DEC["architect: decide"] --> CONTRACT
     ARCH -- no --> CONTRACT["api-contract-designer*"]
     CONTRACT --> OUTLINE["specs-writer: outline<br/>index.md, areas, assumptions"]
     OUTLINE --> PROBE["probes of blocking assumptions*"]
     PROBE --> AREAS["specs-writer: area passes"]
     AREAS --> SPECGATE{"spec-reviewer<br/>per area batch + cross pass"}
     SPECGATE -- FAIL --> AREAS
-    SPECGATE -- PASS --> APPROVE{"You approve the spec?"}
+    SPECGATE -- PASS --> APPROVE{"decision approves the spec?"}
     APPROVE -- changes --> AREAS
     APPROVE -- yes --> S2{{"stop if --until specify"}}
 
@@ -227,7 +247,8 @@ flowchart TD
     WHERE -- rushed --> EFFORT["Raise effort one step"] --> FIX
     WHERE -- scope --> SPLIT["Split the task"]
     WHERE -- upstream --> UP["Back to specs-writer,<br/>api-contract-designer or plan-writer"]
-    N -- "3" --> ASK[/"Stop and ask you<br/>with a summary of what keeps failing"/]
+    N -- "3" --> RULE["decision: direct the fix, split,<br/>or send it upstream"] --> FIX
+    RULE -- "escalates, or fails again" --> ASK[/"Stop and ask you<br/>with a summary of what keeps failing"/]
 ```
 
 ## Agents map
@@ -289,6 +310,7 @@ flowchart LR
     end
 
     subgraph SUPPORT["Cross-cutting"]
+        decision
         model_router["model-router"]
         state_keeper["state-keeper"]
     end
@@ -310,6 +332,7 @@ flowchart LR
     model_router -. routing/ .-> ORCH
     state_keeper -. STATE.md .-> ORCH
     retro_analyst -. proposals .-> ORCH
+    decision -. decision-log.md .-> ORCH
 ```
 
 ## Agents
@@ -329,7 +352,7 @@ Default model / effort below are what `/factory setup` writes in `.factory/setti
 
 | Agent | Default | Role |
 |---|---|---|
-| `architect` | opus / high | Proposes architecture options with trade-offs, one ADR per decision with the binding outcome first. Decides minor matters, never major ones; records your choices; amends with new ADRs. |
+| `architect` | opus / high | Proposes architecture options with trade-offs, one ADR per decision with the binding outcome first. Decides minor matters, never major ones; records the choices of `decision` or yours; amends with new ADRs. |
 | `api-contract-designer` | opus / medium | Defines the interfaces a feature introduces or changes, one file per interface plus shared rules, so implementation can proceed in parallel against a fixed contract. |
 | `specs-writer` | opus / high | Writes the spec: the entrypoint `index.md` and one file per behavior area, each item with the criteria it covers and the contracts and ADRs it depends on. |
 
@@ -373,12 +396,13 @@ Default model / effort below are what `/factory setup` writes in `.factory/setti
 | `e2e-tester` | sonnet / medium | Runs the acceptance criteria end-to-end through the real UI at the close of a phase that changed UI. |
 | `docs-writer` | sonnet / medium | Updates README, API/plugin docs and doc comments to match what was built, when a task changes documented behavior. |
 | `commit-writer` | haiku / low | Commits exactly the files its brief lists, with a Conventional Commits message built from the task file; drafts PR descriptions and changelog entries. |
-| `retro-analyst` | sonnet / medium | End-of-phase retrospective from the reports: what looped, which gates failed and why, what was split; proposes routing, plan and plugin changes for you to accept. |
+| `retro-analyst` | sonnet / medium | End-of-phase retrospective from the reports: what looped, which gates failed and why, what was split, which decisions you overrode; proposes routing, plan, settings and plugin changes (`decision` accepts routing and plan ones, you the settings ones). |
 
 ### Cross-cutting
 
 | Agent | Default | Role |
 |---|---|---|
+| `decision` | opus / xhigh | Answers the questions raised after discover on your behalf, from a global view of the project: correctness, no regression, quality, later phases; never lazy, never over-engineered. Logs every question, answer and reason in `decision-log.md` for you to review or override; escalates what needs your judgement. Never used in setup, intake or discover. |
 | `model-router` | opus / high | Assigns model and effort per task and agent, one plan phase at a time, optimizing total cost to an accepted result; handles escalations after repeated gate failures. |
 | `state-keeper` | haiku / low | The only writer of `.factory/plans/STATE.md`, the feature's `STATE.md` and `decisions.md`. Mechanical bookkeeping only. |
 
@@ -407,7 +431,8 @@ Default model / effort below are what `/factory setup` writes in `.factory/setti
       tasks/T<p>.<n>.md      one task: items, scope, gates, done when         plan-writer
       test-strategy/         commands, infrastructure, cases per area         test-strategist
       routing/               setup routing, rules, escalations, one file per phase   model-router
-      decisions.md           your decisions and the orchestrator's            state-keeper
+      decisions.md           your decisions, the orchestrator's, the agent's  state-keeper
+      decision-log.md        questions decided for you: options, answer, why  decision
       reports/<run>/         one report per gate or writer run                each agent
       retro/phase-<n>.md     retrospective                                    retro-analyst
       stats/                 usage data generated by external tools, if any
@@ -431,9 +456,9 @@ Commit it to share it with your team; the pipeline never commits it for you.
 
 | Section | What it controls |
 |---|---|
-| `agents` | the default model and effort of each of the 30 agents; `model-router` departs from them only where a task needs it |
+| `agents` | the default model and effort of each of the 31 agents; `model-router` departs from them only where a task needs it |
 | `routing` | `auto` (per-task routing by `model-router`) or `defaults` (agents always run at their defaults; the router only handles escalations) |
-| `workflow` | default stop of `/factory new`, where builds pause (`task`, `phase`, `all`), parallel tasks, gates side by side or one at a time, docs-writer, retro |
+| `workflow` | default stop of `/factory new`, where builds pause (`task`, `phase`, `all`), parallel tasks, gates side by side or one at a time, who answers the questions after discover (`decisions`: `agent` or `user`), docs-writer, retro |
 | `failures` | gate failures before escalation and before you are asked, the debugger, environment problems |
 | `security` | who can reach the software (`private`, `internal`, `public`) and which of the 8 security check families the review runs |
 | `tests` | test depth (`minimal`, `standard`, `thorough`) and the levels allowed (unit, property, integration, e2e, visual) |
@@ -444,6 +469,12 @@ With no settings, or a key left out, the factory behaves as described in this RE
 `private` exposure at setup keeps the injection, filesystem, secrets and dependency checks;
 `internal` adds untrusted input, privilege and memory safety; `public` runs all eight. Every key
 is described in [`data-model.md`](plugins/factory/docs/data-model.md#factorysettingsjson--factorysettings1).
+
+After a plugin update, new settings appear in the file by themselves. At session start the
+plugin adds the keys the new version introduced, with their defaults, in the template's order,
+and keeps every value you set; one line in the transcript names them. Behavior does not
+change, since a missing key already took that default. If hooks don't run in a session, the
+next `/factory` run adds them the same way.
 
 ## Data and usage
 
@@ -477,7 +508,7 @@ loops through gates costs more than a strong one that gets it right first time. 
 - **sonnet** — well-specified, local work that follows an existing pattern and has fast tests.
 - **haiku** — mechanical work with deterministic verification (running commands, bookkeeping,
   commits, read-only search).
-- Gates are never routed below their default. Escalation raises the model for capability
+- Gates and `decision` are never routed below their default. Escalation raises the model for capability
   failures and the effort for rushed work, splits a task that is too broad, and sends spec,
   contract or plan faults back upstream. Accepted retro proposals become routing rules, or
   settings changes when a default itself is wrong.
@@ -494,7 +525,8 @@ same way (`/plugin install factory --marketplace <you>/claude-factory`).
 - **Settings** — defaults in `skills/factory/templates/settings.json`, the editor schema in
   `docs/schema/settings-1.json`, the orchestrator's check rules in
   `skills/factory/reference/settings.md`, the meaning of each key in `docs/data-model.md`: a
-  new key goes in all four.
+  new key goes in all four. Existing projects get it from the template at their next session
+  start (`hooks/register.ts`).
 - **Pipeline rules** — stages, gate loop limits and escalation rules live in
   `plugins/factory/skills/factory/SKILL.md`; the procedure of each stage in its `reference/`
   files. `retro-analyst` proposes edits to these; it never applies them.
@@ -510,11 +542,13 @@ same way (`/plugin install factory --marketplace <you>/claude-factory`).
 plugins/factory/
   .claude-plugin/plugin.json               the factory manifest
   skills/factory/SKILL.md                  the orchestrator's core loop
-  skills/factory/reference/*.md            layout, intake, settings, specify-plan, build, changes, briefs
+  skills/factory/reference/*.md            layout, intake, settings, specify-plan, build, changes, decisions, briefs
   skills/factory/templates/settings.json   the default .factory/settings.json
   docs/data-model.md                       the file formats and computed values
   docs/schema/settings-1.json              the JSON Schema of .factory/settings.json
-  agents/*.md                              the 30 subagents
+  agents/*.md                              the 31 subagents
+  hooks/register.ts                        session start: adds new settings keys to existing projects
+  tests/*.test.ts                          tests of the hooks module
 ```
 
 Run a session with your working copy loaded, and check it:
@@ -522,7 +556,8 @@ Run a session with your working copy loaded, and check it:
 ```bash
 claude --plugin-dir plugins/factory           # a session with the plugin loaded from this folder
 claude plugin validate .                      # the marketplace
-claude plugin validate plugins/factory        # the factory manifest
+claude plugin validate plugins/factory        # the factory manifest and its hooks module
+claude plugin test plugins/factory            # the hooks module's tests
 ```
 
 ## License

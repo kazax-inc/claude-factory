@@ -1,7 +1,8 @@
 # Build and phase close
 
 Brief templates: briefs.md. Report paths: layout.md. Round, gate and escalation rules: SKILL.md.
-How the settings change this stage: settings.md (How the settings apply).
+How the settings change this stage: settings.md (How the settings apply). Decision points
+(agents' questions, conflicting verdicts, stuck loops, freezes, retro proposals): decisions.md.
 
 ## Picking tasks
 
@@ -31,8 +32,8 @@ the `--until` target; without a flag, where `workflow.pacing` says: after this t
 
    Skip `test-writer` when the task's `tests` is empty (no test cases); a `migration-writer`
    without a test-writer then gets the task's `tests` on its `Write:` line.
-   `TOO_LARGE` → changes.md, Split. `BLOCKED` → its questions go to the user, or the fault goes
-   upstream (changes.md).
+   `TOO_LARGE` → changes.md, Split. `BLOCKED` → its questions are a `questions` decision point
+   (the answers go on the writer's next `Input:`), or the fault goes upstream (changes.md).
 4. **Gates** — the task's gates are its `gates` list minus the gates the settings set to `off`,
    plus those set to `always` when `scope` is not empty. `test-runner` first; if it passes, the
    others in parallel and `spec-auditor` last once they pass (`workflow.gate_order: sequential`:
@@ -52,7 +53,8 @@ the `--until` target; without a flag, where `workflow.pacing` says: after this t
       `user_round` for each extra round the user ordered;
    5. `commit-writer`: `Files:` = `scope`, `tests`, the docs-writer's files, `reports/<task>/`,
       `.factory/plans/<f>/probes/` for a probe, `.factory/plans/<f>/STATE.md`,
-      `.factory/plans/<f>/decisions.md`, and the plan and spec files changed for this task —
+      `.factory/plans/<f>/decisions.md`, `.factory/plans/<f>/decision-log.md` when `decision`
+      ran for the task, and the plan and spec files changed for this task —
       including a split it came from (`plan.md`, `tasks/`, `routing/`, `reports/<parent>/`,
       `reports/split-<parent>/`); `Trailer:` = the commit attribution lines your own
       instructions give, verbatim, or `none`.
@@ -93,12 +95,13 @@ number ending each file name), and run `git status --porcelain -- <scope> <tests
    the user.
 3. **Retro** — `retro-analyst` writes `retro/phase-<n>.md` (skipped, with step 4, when
    `workflow.retro` is off).
-4. **Proposals** — read its `proposals` and ask the user in one multi-select question (most
-   useful first). Apply the accepted ones: `routing` → `model-router` rules mode; `settings` →
-   you write the change to `.factory/settings.json` (accepting it is the approval); `plan` →
-   `plan-writer` retro mode on later phases and conventions (then `plan-reviewer` on what it
-   changed); `plugin` → leave them in the retro and tell the user they are edits for the
-   plugin's maintainer.
+4. **Proposals** — read its `proposals`. The `routing` and `plan` ones are a `retro` decision
+   point; the `settings` ones always go to the user, in one multi-select question (most useful
+   first; with `workflow.decisions: user`, the routing and plan ones join it). Apply the accepted
+   ones: `routing` → `model-router` rules mode; `settings` → you write the change to
+   `.factory/settings.json` (accepting it is the approval); `plan` → `plan-writer` retro mode
+   on later phases and conventions (then `plan-reviewer` on what it changed); `plugin` → leave
+   them in the retro and tell the user they are edits for the plugin's maintainer.
 5. **Next phase** — `model-router` routes it (not with `routing.mode: defaults`);
    `state-keeper` sets `plan_phase` to it and the next step.
 6. **Commit** — `commit-writer`: `Files: .factory/plans/<f>/ <e2e test files>` as

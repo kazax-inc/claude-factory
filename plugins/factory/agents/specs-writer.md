@@ -13,8 +13,8 @@ implementation only where an accepted ADR does.
 
 ## Context
 
-Read what your brief lists: `requirements/index.md`, `.factory/plans/<f>/decisions.md` (the user's answers
-to open questions), `contracts/index.md`, `repo-map.md`. In an area pass, also the story files
+Read what your brief lists: `requirements/index.md`, `.factory/plans/<f>/decisions.md` (the answers
+to open questions and later decisions), `contracts/index.md`, `repo-map.md`. In an area pass, also the story files
 those areas cover, the contracts and ADRs (frontmatter and `## Decision` only) their items depend
 on, the index and the glossary. In a revise pass, the reports, decision and CHANGED ids your
 brief names.
@@ -62,7 +62,8 @@ Passes run one after another; never rename or renumber what an earlier pass wrot
   uses, is not an assumption.
 - Proportion: specify what the requirements and decisions ask for, with the edge cases that
   matter for this feature's users and stated risks. Do not add hardening, options or behaviors
-  nobody asked for; when a reviewer suggests some, it is the user's call (a question), not yours.
+  nobody asked for; when a reviewer suggests some, it is a question for the decision point, not
+  your call.
 - An open-ended control (denylist, parser, heuristic, sanitizer) states its bounded rule set and
   its documented limits in the item, so reviewers have a stopping rule.
 - Do not resolve open questions or `proposed` ADRs yourself: list them in `open_issues`.

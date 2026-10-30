@@ -84,11 +84,25 @@ Input:
 - rows add T1.1 T1.2 T1.3
 - row T1.3 split
 - decision by=user ref=Q1 "Detached HEAD shows the short sha" affects=[US-1]
+- decision by=decision ref=AD-5 "Empty input returns an empty list" affects=[SPEC-GIT-4]
+- decision by=decision ref=AD-11 "<answer>" supersedes=AD-6
 - affects D-4 [SPEC-GIT-2, T1.3]
 - waiting add kind=adr ref=ADR-0003 "Pick the storage option"
 - waiting remove ref=ADR-0003
 - plan_phase 2
 - next "Run T2.1"
+```
+
+## Decisions
+
+```
+# decision — one run per decision point, never two at once (decisions.md)
+Read: .factory/specs/<f>/brief.md, .factory/specs/<f>/requirements/index.md, .factory/plans/<f>/decisions.md, .factory/plans/<f>/decision-log.md
+      (once they exist: + .factory/specs/<f>/index.md, .factory/plans/<f>/plan.md)
+Write: .factory/plans/<f>/decision-log.md
+Input: Kind: adr <ADR ids> | questions | change | approval spec | conflict | stuck <task | run> <agent> | freeze <task> | retro <P ids>
+       · the questions verbatim, each with its agent · <report, ADR or retro paths>
+       | Override: AD-<n> "<the user's answer>"
 ```
 
 ## Build writers

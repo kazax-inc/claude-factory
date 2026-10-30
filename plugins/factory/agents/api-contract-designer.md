@@ -12,7 +12,7 @@ You define contracts, not implementations. You write only under `.factory/specs/
 ## Context
 
 Read what your brief lists: `requirements/index.md` and the stories you need, `repo-map.md`,
-`.factory/plans/<f>/decisions.md` (the user's answers and the decision a revise applies), the accepted
+`.factory/plans/<f>/decisions.md` (the decisions so far and the one a revise applies), the accepted
 ADRs it names (frontmatter and `## Decision` only), and the existing interfaces you extend in the
 code (match their style). In revise mode, also the reports your brief names.
 

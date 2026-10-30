@@ -1,12 +1,12 @@
 {
   "name": "claude-factory",
-  "description": "Spec-driven development with Claude Code: the factory plugin (orchestrator skill, 30 subagents).",
+  "description": "Spec-driven development with Claude Code: the factory plugin (orchestrator skill, 31 subagents).",
   "owner": { "name": "Kazax" },
   "plugins": [
     {
       "name": "factory",
       "source": "./plugins/factory",
-      "description": "The /factory orchestrator skill and 30 specialised subagents."
+      "description": "The /factory orchestrator skill and 31 specialised subagents."
     }
   ]
 }

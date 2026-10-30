@@ -1,7 +1,7 @@
 {
   "name": "factory",
-  "version": "0.4.0",
-  "description": "Spec-driven development pipeline: the /factory orchestrator skill and 30 specialised subagents, working on fragmented specs and per-task plans under .factory/ so each agent loads only what it needs, with per-project settings for models, security scope, tests and pacing.",
+  "version": "0.5.0",
+  "description": "Spec-driven development pipeline: the /factory orchestrator skill and 31 specialised subagents, working on fragmented specs and per-task plans under .factory/ so each agent loads only what it needs, with per-project settings for models, security scope, tests and pacing.",
   "author": { "name": "Kazax" },
   "license": "MIT"
 }
