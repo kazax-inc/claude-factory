@@ -8,7 +8,7 @@ implements, with each node's status.
 ● git-panel [build] ✗ ⚠
 ○ auth [done] ✓
 ○ search [specify] ●
-● running  ✗ blocked  ⚠ waiting on you  ‖ paused  ✓ done
+● running  ✗ blocked  ⚠ waiting on you  ○ paused  ✓ done
 
 git-panel ✗ ⚠ · active feature
 A read-only side panel showing the current branch, the working tree status and recent commits.
@@ -60,7 +60,7 @@ From a shell: `claude plugin install factory-plan-pane --marketplace kazax-inc/c
   open or close it. `e` expands every node, `c` collapses them all, `r` reads the plan again.
 - With several features, a list at the top shows each one as `● <feature> [<stage>]` followed by
   its state, always as icons: a green ● while a factory agent works on it in this session, ✗ when
-  one of its tasks is blocked, ⚠ when it waits on you, ‖ when paused, ✓ once done. A legend under
+  one of its tasks is blocked, ⚠ when it waits on you, ○ when paused, ✓ once done. A legend under
   the list names them. Press a row to show that feature; ● before the name marks the one shown.
 - A feature counts as running while a subagent whose brief opens with `Feature: <feature>` works:
   the pane sees it start, and also picks up one already running when the pane loads (after an

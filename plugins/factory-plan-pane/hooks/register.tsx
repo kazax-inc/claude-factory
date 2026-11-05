@@ -77,7 +77,7 @@ const STATE: Record<'running' | 'blocked' | 'waiting' | 'paused' | 'done', Mark>
   running: { glyph: '●', color: 'success', word: 'running' },
   blocked: { glyph: LOOK.blocked.glyph, color: LOOK.blocked.color, word: 'blocked' },
   waiting: { glyph: '⚠', color: 'warning', word: 'waiting on you' },
-  paused: { glyph: '‖', color: 'inactive', word: 'paused' },
+  paused: { glyph: '○', color: 'inactive', word: 'paused' },
   done: { glyph: LOOK.done.glyph, color: LOOK.done.color, word: 'done' },
 }
 const FEATURE_LEGEND = [STATE.running, STATE.blocked, STATE.waiting, STATE.paused, STATE.done]

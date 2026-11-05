@@ -194,14 +194,14 @@ test('the list shows every state as an icon, and a green dot while an agent brie
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await row('alpha')).toBe('● alpha [build] ✗ ⚠')
-  expect(await row('beta')).toBe('○ beta [specify] ‖')
+  expect(await row('beta')).toBe('○ beta [specify] ○')
   expect(await row('gamma')).toBe('○ gamma [done] ✓')
-  expect(await ui.find({ type: 'Text', text: '● running  ✗ blocked  ⚠ waiting on you  ‖ paused  ✓ done' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '● running  ✗ blocked  ⚠ waiting on you  ○ paused  ✓ done' })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: /^ ✗$/ }))?.props.color).toBe('error')
   expect((await ui.find({ type: 'Text', text: /^ ✓$/ }))?.props.color).toBe('success')
 
   await spawn('Feature: beta\nPhase: setup\nTask: specify\nProject: existing\nRead: …')
-  expect(await row('beta')).toBe('○ beta [specify] ● ‖')
+  expect(await row('beta')).toBe('○ beta [specify] ● ○')
   const dot = await ui.find({ type: 'Text', text: /^ ●$/ })
   expect(dot?.props.color).toBe('success')
 
@@ -210,9 +210,9 @@ test('the list shows every state as an icon, and a green dot while an agent brie
   expect(await row('alpha')).toBe('● alpha [build] ✗ ⚠')
 
   await done('a2')
-  expect(await row('beta')).toBe('○ beta [specify] ● ‖')
+  expect(await row('beta')).toBe('○ beta [specify] ● ○')
   await done('a1')
-  expect(await row('beta')).toBe('○ beta [specify] ‖')
+  expect(await row('beta')).toBe('○ beta [specify] ○')
   await ui.unmount()
 })
 
