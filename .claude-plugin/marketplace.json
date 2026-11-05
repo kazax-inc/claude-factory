@@ -1,12 +1,17 @@
 {
   "name": "claude-factory",
-  "description": "Spec-driven development with Claude Code: the factory plugin (orchestrator skill, 30 subagents).",
+  "description": "Spec-driven development with Claude Code: the factory plugin (orchestrator skill, 30 subagents) and the optional factory-plan-pane mod.",
   "owner": { "name": "Kazax" },
   "plugins": [
     {
       "name": "factory",
       "source": "./plugins/factory",
       "description": "The /factory orchestrator skill and 30 specialised subagents."
+    },
+    {
+      "name": "factory-plan-pane",
+      "source": "./plugins/factory-plan-pane",
+      "description": "A pane showing the factory plan's progress as a collapsible tree of phases, tasks, subtasks and spec items. Optional; reads .factory/ and works without the factory plugin."
     }
   ]
 }
