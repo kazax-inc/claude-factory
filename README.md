@@ -52,6 +52,19 @@ Then run `/factory setup` in the project you want to build: it asks four questio
 reach the software, test depth, test levels, pacing) and writes `.factory/settings.json`. If you
 skip it, `/factory new` asks the same questions the first time.
 
+### Plan pane (optional)
+
+[`factory-plan-pane`](plugins/factory-plan-pane) is a mod that keeps the plan beside the chat: a
+pane with the active feature's stage and progress, and a tree of phases, tasks, split subtasks and
+spec items with their statuses, which you expand and collapse. It only reads `.factory/`, and in
+a project without one it says the factory is not initialized.
+
+```text
+/plugin install factory-plan-pane --marketplace kazax-inc/claude-factory
+```
+
+Then `/factory-plan` opens it; it also opens by itself in fullscreen when the project has a plan.
+
 ## Usage
 
 | Command | What it does |
@@ -549,6 +562,7 @@ plugins/factory/
   agents/*.md                              the 31 subagents
   hooks/register.ts                        session start: adds new settings keys to existing projects
   tests/*.test.ts                          tests of the hooks module
+plugins/factory-plan-pane/                 the optional plan pane mod (its README covers developing it)
 ```
 
 Run a session with your working copy loaded, and check it:
