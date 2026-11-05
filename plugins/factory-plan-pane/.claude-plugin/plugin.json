@@ -1,6 +1,6 @@
 {
   "name": "factory-plan-pane",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A pane showing the factory plan's progress as a collapsible tree of phases, tasks, subtasks and spec items, read from the project's .factory folder.",
   "author": { "name": "Kazax" },
   "license": "MIT",

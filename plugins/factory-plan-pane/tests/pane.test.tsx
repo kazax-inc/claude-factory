@@ -1,4 +1,4 @@
-import type { On } from 'claude-code'
+import type { AgentInfo, On, SessionMessage } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
@@ -21,19 +21,25 @@ const PANE = {
 
 const SURFACES = ['terminal', 'desktop', 'vscode', 'mobile'] as const
 
+/** The session's agents and transcript as the engine would list them; a test may change them. */
+type World = { agents: AgentInfo[]; messages: SessionMessage[] }
+
 // Nothing sits beneath the plugin: these hooks stand for the engine.
-async function start($: Engine, on: On, files: Record<string, string>) {
+async function start($: Engine, on: On, files: Record<string, string>, world: World = { agents: [], messages: [] }) {
   serve(on, files)
   const clock = mock.clock(on)
   on('session.root', () => ({ value: ROOT }))
   on('command.register', () => ({ value: { command: 'factory-plan' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('ui.panes', () => ({ value: [] }))
+  on('ui.panes', () => ({
+    value: [{ id: 'factory-plan', title: 'Factory plan', isShown: true, isFocused: false, isPlaced: true }],
+  }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('tool.call', () => ({ result: {} }))
   let spawned = 0
   on('agent.spawn', () => ({ model: 'haiku', agentId: `a${++spawned}` }))
-  on('agent.list', () => ({ value: [] }))
+  on('agent.list', () => ({ value: world.agents }))
+  on('session.messages', () => ({ value: world.messages }))
   on('turn.complete', (_, e) => ({ text: e.answer }))
   await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
   return clock
@@ -162,10 +168,12 @@ test('a write under .factory reads the plan again', async ($, on) => {
   await ui.unmount()
 })
 
-test('the list marks blocked and done features, and a green dot while an agent briefed for one runs', async ($, on) => {
+test('the list shows every state as an icon, and a green dot while an agent briefed for a feature runs', async ($, on) => {
   const files = project()
   const alpha = `${ROOT}/.factory/plans/alpha/STATE.md`
   files[alpha] = files[alpha]!.replace('status: active', 'status: waiting_on_user')
+  const beta = `${ROOT}/.factory/plans/beta/STATE.md`
+  files[beta] = files[beta]!.replace('status: active', 'status: paused')
   files[`${ROOT}/.factory/plans/gamma/STATE.md`] =
     '---\nschema: factory.state/2\nfeature: gamma\nstatus: done\nstage: done\ntasks: []\n---\n'
   await start($, on, files)
@@ -185,24 +193,53 @@ test('the list marks blocked and done features, and a green dot while an agent b
   const row = async (name: string) => (await ui.find({ key: `feature:${name}` }))?.text
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await row('alpha')).toBe('● alpha [build] ✗ (waiting on you)')
-  expect(await row('beta')).toBe('○ beta [specify]')
+  expect(await row('alpha')).toBe('● alpha [build] ✗ ⚠')
+  expect(await row('beta')).toBe('○ beta [specify] ‖')
   expect(await row('gamma')).toBe('○ gamma [done] ✓')
+  expect(await ui.find({ type: 'Text', text: '● running  ✗ blocked  ⚠ waiting on you  ‖ paused  ✓ done' })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: /^ ✗$/ }))?.props.color).toBe('error')
   expect((await ui.find({ type: 'Text', text: /^ ✓$/ }))?.props.color).toBe('success')
 
   await spawn('Feature: beta\nPhase: setup\nTask: specify\nProject: existing\nRead: …')
-  expect(await row('beta')).toBe('○ beta [specify] ●')
+  expect(await row('beta')).toBe('○ beta [specify] ● ‖')
   const dot = await ui.find({ type: 'Text', text: /^ ●$/ })
   expect(dot?.props.color).toBe('success')
 
   // A prompt that is no factory brief marks nothing.
   await spawn('Find where the panel is drawn')
-  expect(await row('alpha')).toBe('● alpha [build] ✗ (waiting on you)')
+  expect(await row('alpha')).toBe('● alpha [build] ✗ ⚠')
 
   await done('a2')
-  expect(await row('beta')).toBe('○ beta [specify] ●')
+  expect(await row('beta')).toBe('○ beta [specify] ● ‖')
   await done('a1')
-  expect(await row('beta')).toBe('○ beta [specify]')
+  expect(await row('beta')).toBe('○ beta [specify] ‖')
+  await ui.unmount()
+})
+
+test('a factory agent the pane did not see start is adopted from the transcript, and dropped once it ends', async ($, on) => {
+  const world: World = {
+    agents: [{ id: 'x9', description: 'Spec pass', type: 'factory:specs-writer', status: 'running' }],
+    messages: [
+      {
+        role: 'assistant',
+        text: '',
+        toolUses: [
+          {
+            tool_use_id: 'toolu_9',
+            tool: 'Agent',
+            input: { subagent_type: 'factory:specs-writer', prompt: 'Feature: beta\nPhase: setup\nTask: specify' },
+            agentId: 'x9',
+          },
+        ],
+      },
+    ],
+  }
+  const clock = await start($, on, project(), world)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ key: 'feature:beta' }))?.text).toBe('○ beta [specify] ●')
+
+  world.agents = [{ id: 'x9', description: 'Spec pass', type: 'factory:specs-writer', status: 'completed' }]
+  await clock.advance(5000)
+  expect((await ui.find({ key: 'feature:beta' }))?.text).toBe('○ beta [specify]')
   await ui.unmount()
 })

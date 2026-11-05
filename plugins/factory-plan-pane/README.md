@@ -5,11 +5,12 @@ active feature's progress as a tree of phases, tasks, split subtasks and the spe
 implements, with each node's status.
 
 ```text
-● git-panel [build] ✗ (waiting on you)
+● git-panel [build] ✗ ⚠
 ○ auth [done] ✓
 ○ search [specify] ●
+● running  ✗ blocked  ⚠ waiting on you  ‖ paused  ✓ done
 
-git-panel · waiting on you · active feature
+git-panel ✗ ⚠ · active feature
 A read-only side panel showing the current branch, the working tree status and recent commits.
 
 intake › discover › specify › plan › build › done
@@ -57,11 +58,14 @@ From a shell: `claude plugin install factory-plan-pane --marketplace kazax-inc/c
   back to the session's project.
 - Press a phase or a task (click, or Enter on it once the pane has the keyboard: ctrl+x tab) to
   open or close it. `e` expands every node, `c` collapses them all, `r` reads the plan again.
-- With several features, a list at the top shows each one as `● <feature> [<stage>]`, followed
-  by a green ● while a factory agent works on it in this session (an agent whose brief opens with
-  `Feature: <feature>`), ✗ when one of its tasks is blocked, ✓ once it is done, and
-  `(waiting on you)` or `(paused)` from its `STATE.md`. Press a row to show that feature; ● before
-  the name marks the one shown.
+- With several features, a list at the top shows each one as `● <feature> [<stage>]` followed by
+  its state, always as icons: a green ● while a factory agent works on it in this session, ✗ when
+  one of its tasks is blocked, ⚠ when it waits on you, ‖ when paused, ✓ once done. A legend under
+  the list names them. Press a row to show that feature; ● before the name marks the one shown.
+- A feature counts as running while a subagent whose brief opens with `Feature: <feature>` works:
+  the pane sees it start, and also picks up one already running when the pane loads (after an
+  install, an update or `/reload-plugins`) from the transcript's Agent calls. A factory run in
+  another session does not show here.
 
 The pane opens by itself as a sidebar when the terminal is in fullscreen and the project has a
 factory plan. Turn that off with the plugin's **Open the plan pane by itself** option in
@@ -107,6 +111,9 @@ This repository has no factory plan of its own, so try the pane on the mock proj
 ```text
 /factory-plan plugins/factory-plan-pane/fixtures/demo
 ```
+
+Bump `version` in `.claude-plugin/plugin.json` with every change you publish: an installed copy
+updates (`/plugin`, then `/reload-plugins`) only to a new version.
 
 Check and test it from the repository root:
 

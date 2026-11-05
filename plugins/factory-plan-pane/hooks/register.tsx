@@ -33,7 +33,7 @@ const snapshot = atom({ plugin: 'factory-plan-pane', key: 'snapshot' } as const,
 const expanded = atom({ plugin: 'factory-plan-pane', key: 'expanded' } as const, {}, { shape: 'expanded-1' })
 const rootChoice = atom({ plugin: 'factory-plan-pane', key: 'root' } as const, '')
 const featureChoice = atom({ plugin: 'factory-plan-pane', key: 'feature' } as const, '')
-const runningFeatures = atom({ plugin: 'factory-plan-pane', key: 'running' } as const, [])
+const trackedAgents = atom({ plugin: 'factory-plan-pane', key: 'agents' } as const, {})
 
 /** Agent statuses that still count as working (AgentStatus). */
 const WORKING = new Set(['pending', 'running', 'waiting'])
@@ -70,26 +70,31 @@ function pickFeature(snap: PlanSnapshot, chosen: string): PlanFeature | undefine
   )
 }
 
-type Mark = { text: string; color: string }
+type Mark = { glyph: string; color: string; word: string }
+
+/** A feature's states as icons, never as text; FEATURE_LEGEND names them. */
+const STATE: Record<'running' | 'blocked' | 'waiting' | 'paused' | 'done', Mark> = {
+  running: { glyph: '●', color: 'success', word: 'running' },
+  blocked: { glyph: LOOK.blocked.glyph, color: LOOK.blocked.color, word: 'blocked' },
+  waiting: { glyph: '⚠', color: 'warning', word: 'waiting on you' },
+  paused: { glyph: '‖', color: 'inactive', word: 'paused' },
+  done: { glyph: LOOK.done.glyph, color: LOOK.done.color, word: 'done' },
+}
+const FEATURE_LEGEND = [STATE.running, STATE.blocked, STATE.waiting, STATE.paused, STATE.done]
 
 /**
- * The icons after a feature's stage: a green dot while a factory agent works
- * on it in this session, the tree's blocked mark when any of its tasks is
- * blocked, and its done mark once the feature is done.
+ * The icons after a feature's stage: running while a factory agent works on
+ * it in this session, blocked when any of its tasks is, waiting on the person
+ * or paused as its STATE.md says, done once it is done.
  */
 function featureIcons(feature: PlanFeature, isRunning: boolean): Mark[] {
   const icons: Mark[] = []
-  if (isRunning) icons.push({ text: '●', color: 'success' })
-  if (progress(allTasks(feature)).blocked > 0) icons.push({ text: LOOK.blocked.glyph, color: LOOK.blocked.color })
-  if (feature.status === 'done' || feature.stage === 'done') icons.push({ text: LOOK.done.glyph, color: LOOK.done.color })
+  if (isRunning) icons.push(STATE.running)
+  if (progress(allTasks(feature)).blocked > 0) icons.push(STATE.blocked)
+  if (feature.status === 'waiting_on_user') icons.push(STATE.waiting)
+  if (feature.status === 'paused') icons.push(STATE.paused)
+  if (feature.status === 'done' || feature.stage === 'done') icons.push(STATE.done)
   return icons
-}
-
-/** What the feature's STATE.md says when it needs the person: waiting on them, or paused. */
-function featureNote(feature: PlanFeature): Mark | undefined {
-  if (feature.status === 'waiting_on_user') return { text: '(waiting on you)', color: 'warning' }
-  if (feature.status === 'paused') return { text: '(paused)', color: 'inactive' }
-  return undefined
 }
 
 function describe(snap: PlanSnapshot, sessionRoot: string): string {
@@ -111,26 +116,48 @@ let lastFingerprint = ''
 let pending: Timer | undefined
 let inFlight: Promise<PlanSnapshot | undefined> | undefined
 let isQueued = false
-/** Factory subagents working now: agent id to the feature its brief names. */
-const agents = new Map<string, string>()
+/** Working factory agents already looked up in the transcript, found or not. */
+const lookedUp = new Set<string>()
 
-/** Writes the features the tracked agents work on, when they changed. */
-async function syncRunning($: EngineInterface): Promise<void> {
-  const names = [...new Set(agents.values())].sort()
-  const now = await read($, runningFeatures)
-  if (now.length === names.length && now.every((name, index) => name === names[index])) return
-  await update($, runningFeatures, () => names)
+/**
+ * Brings the tracked agents in line with the session: drops those no longer
+ * working (finished, stopped, failed) and adopts working `factory:` agents the
+ * pane did not see start (started before the mod loaded or reloaded), whose
+ * brief it finds in the transcript's Agent calls. Tracked agents live in
+ * $.state, so a reload of the module keeps them.
+ */
+async function refreshAgents($: EngineInterface): Promise<void> {
+  const listed = await $.agent.list()
+  const working = new Set(listed.filter(agent => WORKING.has(agent.status)).map(agent => agent.id))
+  const tracked = await read($, trackedAgents)
+  const kept: Record<string, string> = {}
+  for (const [id, feature] of Object.entries(tracked)) if (working.has(id)) kept[id] = feature
+  const unknown = listed.filter(
+    agent => working.has(agent.id) && kept[agent.id] === undefined && agent.type.startsWith('factory:') && !lookedUp.has(agent.id),
+  )
+  if (unknown.length > 0) {
+    const briefs = new Map<string, string>()
+    for (const message of await $.session.messages()) {
+      for (const use of message.toolUses) {
+        const feature = use.agentId === undefined ? undefined : briefFeature(String(use.input.prompt ?? ''))
+        if (use.agentId !== undefined && feature !== undefined) briefs.set(use.agentId, feature)
+      }
+    }
+    for (const agent of unknown) {
+      lookedUp.add(agent.id)
+      const feature = briefs.get(agent.id)
+      if (feature !== undefined) kept[agent.id] = feature
+    }
+  }
+  const isSame =
+    Object.keys(kept).length === Object.keys(tracked).length &&
+    Object.entries(kept).every(([id, feature]) => tracked[id] === feature)
+  if (!isSame) await update($, trackedAgents, () => kept)
 }
 
-/** Drops tracked agents the session no longer lists as working (stopped, failed). */
-async function pruneAgents($: EngineInterface): Promise<void> {
-  if (agents.size === 0) return
-  const listed = await $.agent.list()
-  for (const id of [...agents.keys()]) {
-    const agent = listed.find(one => one.id === id)
-    if (agent === undefined || !WORKING.has(agent.status)) agents.delete(id)
-  }
-  await syncRunning($)
+/** The features a tracked agent works on. */
+function runningOf(tracked: Readonly<Record<string, string>>): string[] {
+  return [...new Set(Object.values(tracked))]
 }
 
 async function reload($: EngineInterface): Promise<PlanSnapshot> {
@@ -181,7 +208,7 @@ function scheduleReload($: EngineInterface): void {
 async function poll($: EngineInterface): Promise<void> {
   const panes = await $.ui.panes()
   if (!panes.some(pane => pane.id === PANE && pane.isPlaced && pane.isShown)) return
-  await pruneAgents($)
+  await refreshAgents($)
   const now = await fingerprint($, await projectRoot($))
   if (now !== lastFingerprint) await requestReload($)
 }
@@ -195,9 +222,7 @@ export const register: Register = (on, options) => {
       description: 'Show the factory plan in a pane (optionally for another project folder)',
       argumentHint: '[project folder]',
     })
-    // A reload forgets which agents were tracked: start from none running.
-    agents.clear()
-    await update($, runningFeatures, () => [])
+    await refreshAgents($).catch(() => undefined)
     await requestReload($).catch(() => undefined)
     $.clock.every(POLL_MS, () => void poll($).catch(() => undefined))
     return next(e)
@@ -214,6 +239,7 @@ export const register: Register = (on, options) => {
       await update($, rootChoice, () => chosen)
       await update($, featureChoice, () => '')
     }
+    await refreshAgents($).catch(() => undefined)
     const snap = await requestReload($)
     const opened = await $.ui.open({ id: PANE, title: TITLE })
     const about = snap === undefined ? '' : `: ${describe(snap, sessionRoot)}`
@@ -243,15 +269,18 @@ export const register: Register = (on, options) => {
   on('agent.spawn', async ($, e, next) => {
     const feature = briefFeature(e.prompt)
     const started = await next(e)
-    if (feature !== undefined && started.agentId !== undefined) {
-      agents.set(started.agentId, feature)
-      await syncRunning($)
+    const id = started.agentId
+    if (feature !== undefined && id !== undefined) {
+      await update($, trackedAgents, map => ({ ...map, [id]: feature }))
     }
     return started
   }).catch(($, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
-    if (e.agentId !== undefined && agents.delete(e.agentId)) await syncRunning($)
+    const id = e.agentId
+    if (id !== undefined && (await read($, trackedAgents))[id] !== undefined) {
+      await update($, trackedAgents, map => Object.fromEntries(Object.entries(map).filter(([key]) => key !== id)))
+    }
     scheduleReload($)
     return next(e)
   })
@@ -327,7 +356,7 @@ export const register: Register = (on, options) => {
       )
     }
 
-    const running = await read($, runningFeatures)
+    const running = runningOf(await read($, trackedAgents))
     const choices = await read($, expanded)
     const rows = flatten(feature, choices)
     const keys = expandableKeys(feature)
@@ -369,7 +398,7 @@ export const register: Register = (on, options) => {
   })
 }
 
-/** One row per feature, `● <feature> [<stage>] <icons> (<note>)`; a press shows that feature. */
+/** One row per feature, `● <feature> [<stage>] <icons>`, then the icons' legend; a press shows that feature. */
 function featureList(
   els: Els,
   snap: PlanSnapshot,
@@ -382,17 +411,26 @@ function featureList(
     <Box flexDirection="column" marginBottom={1}>
       {snap.features.map(feature => {
         const isShown = feature.name === shown.name
-        const marks = [...featureIcons(feature, running.includes(feature.name)), featureNote(feature)]
+        const icons = featureIcons(feature, running.includes(feature.name))
         return (
           <Button key={`feature:${feature.name}`} plain onPress={() => void choose(feature.name)}>
             <Text color={isShown ? 'claude' : undefined} weight={isShown ? 'bold' : undefined} dimColor={!isShown}>
               {`${isShown ? '●' : '○'} ${feature.name}`}
             </Text>
             {feature.stage !== '' ? <Text dimColor>{` [${feature.stage}]`}</Text> : ''}
-            {marks.map(mark => (mark === undefined ? '' : <Text color={mark.color}>{` ${mark.text}`}</Text>))}
+            {icons.map(icon => (
+              <Text color={icon.color}>{` ${icon.glyph}`}</Text>
+            ))}
           </Button>
         )
       })}
+      <Text>
+        {FEATURE_LEGEND.flatMap((mark, index) => [
+          index > 0 ? '  ' : '',
+          <Text color={mark.color}>{mark.glyph}</Text>,
+          <Text dimColor>{` ${mark.word}`}</Text>,
+        ])}
+      </Text>
     </Box>
   )
 }
@@ -400,10 +438,7 @@ function featureList(
 function header(els: Els, snap: PlanSnapshot, feature: PlanFeature, isRunning: boolean, width: number) {
   const { Box, Text } = els
   const icons = featureIcons(feature, isRunning)
-  const words = feature.status === 'waiting_on_user' ? 'waiting on you' : feature.status === 'paused' ? 'paused' : ''
-  const state = [words, feature.name === snap.active ? 'active feature' : '']
-    .filter(part => part !== '')
-    .join(' · ')
+  const state = feature.name === snap.active ? 'active feature' : ''
   const tasks = progress(allTasks(feature))
   const specs = specCoverage(feature)
   const percent = tasks.total === 0 ? 0 : Math.round((tasks.done * 100) / tasks.total)
@@ -421,7 +456,7 @@ function header(els: Els, snap: PlanSnapshot, feature: PlanFeature, isRunning: b
       <Text>
         <Text weight="bold">{feature.name}</Text>
         {icons.map(icon => (
-          <Text color={icon.color}>{` ${icon.text}`}</Text>
+          <Text color={icon.color}>{` ${icon.glyph}`}</Text>
         ))}
         {state !== '' ? <Text dimColor>{` · ${state}`}</Text> : null}
       </Text>
