@@ -5,8 +5,11 @@ active feature's progress as a tree of phases, tasks, split subtasks and the spe
 implements, with each node's status.
 
 ```text
-● git-panel ★   ○ auth   ○ search
-git-panel · waiting on user · active feature
+● git-panel [build] ✗ (waiting on you)
+○ auth [done] ✓
+○ search [specify] ●
+
+git-panel · waiting on you · active feature
 A read-only side panel showing the current branch, the working tree status and recent commits.
 
 intake › discover › specify › plan › build › done
@@ -54,7 +57,11 @@ From a shell: `claude plugin install factory-plan-pane --marketplace kazax-inc/c
   back to the session's project.
 - Press a phase or a task (click, or Enter on it once the pane has the keyboard: ctrl+x tab) to
   open or close it. `e` expands every node, `c` collapses them all, `r` reads the plan again.
-- With several features, the row at the top switches between them; ★ marks the active one.
+- With several features, a list at the top shows each one as `● <feature> [<stage>]`, followed
+  by a green ● while a factory agent works on it in this session (an agent whose brief opens with
+  `Feature: <feature>`), ✗ when one of its tasks is blocked, ✓ once it is done, and
+  `(waiting on you)` or `(paused)` from its `STATE.md`. Press a row to show that feature; ● before
+  the name marks the one shown.
 
 The pane opens by itself as a sidebar when the terminal is in fullscreen and the project has a
 factory plan. Turn that off with the plugin's **Open the plan pane by itself** option in

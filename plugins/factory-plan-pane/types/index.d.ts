@@ -63,6 +63,8 @@ declare module 'claude-code' {
       root: string
       /** The feature shown; '' for the active one. */
       feature: string
+      /** Features a factory subagent is working on in this session now. */
+      running: string[]
     }
   }
 }

@@ -31,6 +31,10 @@ async function start($: Engine, on: On, files: Record<string, string>) {
   on('ui.panes', () => ({ value: [] }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('tool.call', () => ({ result: {} }))
+  let spawned = 0
+  on('agent.spawn', () => ({ model: 'haiku', agentId: `a${++spawned}` }))
+  on('agent.list', () => ({ value: [] }))
+  on('turn.complete', (_, e) => ({ text: e.answer }))
   await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
   return clock
 }
@@ -107,12 +111,14 @@ test('expand all shows subtasks and spec items; collapse all leaves the phases',
   await ui.unmount()
 })
 
-test('another feature is chosen from the tabs; one with no plan says so', async ($, on) => {
+test('another feature is chosen from the list; one with no plan says so', async ($, on) => {
   await start($, on, project())
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ key: 'feature:alpha' }))?.text).toBe('● alpha ★')
+  expect((await ui.find({ key: 'feature:alpha' }))?.text).toBe('● alpha [build] ✗')
+  expect((await ui.find({ key: 'feature:beta' }))?.text).toBe('○ beta [specify]')
 
   await ui.press({ key: 'feature:beta' })
+  expect((await ui.find({ key: 'feature:beta' }))?.text).toBe('● beta [specify]')
   expect(await ui.find({ type: 'Text', text: /No plan yet: this feature is at the specify stage/ })).toBeDefined()
   expect(await ui.find({ key: 'expand-all' })).toBeUndefined()
   await ui.unmount()
@@ -153,5 +159,50 @@ test('a write under .factory reads the plan again', async ($, on) => {
   await $.tool.call({ tool: 'Edit', file_path: `${ROOT}/.factory/plans/alpha/STATE.md`, old_string: 'a', new_string: 'b' })
   await clock.advance(1000)
   expect((await ui.find({ key: 'alpha:P2' }))?.text).toMatch(/1\/2/)
+  await ui.unmount()
+})
+
+test('the list marks blocked and done features, and a green dot while an agent briefed for one runs', async ($, on) => {
+  const files = project()
+  const alpha = `${ROOT}/.factory/plans/alpha/STATE.md`
+  files[alpha] = files[alpha]!.replace('status: active', 'status: waiting_on_user')
+  files[`${ROOT}/.factory/plans/gamma/STATE.md`] =
+    '---\nschema: factory.state/2\nfeature: gamma\nstatus: done\nstage: done\ntasks: []\n---\n'
+  await start($, on, files)
+  const spawn = (prompt: string) =>
+    $.agent.spawn({
+      tool_use_id: 'toolu_1',
+      prompt,
+      description: 'Factory step',
+      subagentType: 'factory:specs-writer',
+      provider: { plugin: 'factory', tier: 'user' },
+      parentModel: 'claude-opus-5-5',
+      background: true,
+      fork: false,
+    })
+  const done = (agentId: string) =>
+    $.turn.complete({ answer: 'DONE', durationMs: 5, isAborted: false, turnId: 't1', agentId, reason: 'answer' })
+  const row = async (name: string) => (await ui.find({ key: `feature:${name}` }))?.text
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await row('alpha')).toBe('● alpha [build] ✗ (waiting on you)')
+  expect(await row('beta')).toBe('○ beta [specify]')
+  expect(await row('gamma')).toBe('○ gamma [done] ✓')
+  expect((await ui.find({ type: 'Text', text: /^ ✗$/ }))?.props.color).toBe('error')
+  expect((await ui.find({ type: 'Text', text: /^ ✓$/ }))?.props.color).toBe('success')
+
+  await spawn('Feature: beta\nPhase: setup\nTask: specify\nProject: existing\nRead: …')
+  expect(await row('beta')).toBe('○ beta [specify] ●')
+  const dot = await ui.find({ type: 'Text', text: /^ ●$/ })
+  expect(dot?.props.color).toBe('success')
+
+  // A prompt that is no factory brief marks nothing.
+  await spawn('Find where the panel is drawn')
+  expect(await row('alpha')).toBe('● alpha [build] ✗ (waiting on you)')
+
+  await done('a2')
+  expect(await row('beta')).toBe('○ beta [specify] ●')
+  await done('a1')
+  expect(await row('beta')).toBe('○ beta [specify]')
   await ui.unmount()
 })
