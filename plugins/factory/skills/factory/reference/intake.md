@@ -2,6 +2,9 @@
 
 Brief templates: briefs.md. Paths and ids: layout.md.
 
+Intake and discover are where the user defines the work: every question here goes to the user,
+whatever `workflow.decisions` says, and `decision` never runs (decisions.md).
+
 ## /factory new (Phase: setup, Task: intake)
 
 The settings were checked at the start of the run (SKILL.md); without a settings file, the setup
@@ -54,7 +57,9 @@ explicitly, and the plan builds the ground the feature stands on.
   leaves the stack open.
 - **Specify** — `architect` always runs. Its ADRs decide the foundation: language and
   framework, project layout and module boundaries, build tool, test framework, lint and
-  format, packaging. Each is major: the user picks before `specs-writer` starts.
+  format, packaging. Each has `impact: foundation`: the user picks before `specs-writer`
+  starts, even with `workflow.decisions: agent`. The feature's other major ADRs go to the
+  decision point like in any feature.
 - **Plan** — `test-strategist` takes the test framework from the accepted ADR and defines the
   layout and commands. `plan-writer` opens with phase 0 — Foundation: project skeleton, build,
   format and lint config, a test harness with one passing smoke test, the commands in the

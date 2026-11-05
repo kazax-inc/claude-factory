@@ -2,7 +2,8 @@
 
 `.factory/settings.json` holds the project's factory settings. It is the one JSON file of the
 factory and belongs to the user: they edit it whenever they like; you write it only when they ask
-for a change or approve one you propose. Agents never write it. The defaults are in
+for a change or approve one you propose, plus the keys a newer plugin adds (Check). Agents never
+write it. The defaults are in
 `../templates/settings.json` and reproduce the factory's behavior without settings; the meaning
 of each key is in `../../../docs/data-model.md`, and editors check the file against
 `../../../docs/schema/settings-1.json`.
@@ -14,7 +15,13 @@ user may have edited it since the last one.
 
 - **Missing file** — `new` and `next`: run the question round of Setup, write the file, then go
   on with the command. `status` and `switch`: do the command, then suggest `/factory setup`.
-- **Missing keys** — take the template's value. Never an error.
+- **Missing keys** — keys a newer plugin added. At session start the plugin's hook
+  (`hooks/register.ts`) writes them into the file, so after an update the file usually has them
+  already. Any that are still missing (hooks off, a session started outside the project's root):
+  write them yourself, each with the template's value at the template's place, leaving every
+  other value as it is, and say in one line which keys you added. This is never an error and
+  never a question: a missing key already takes the template's value, so the write changes no
+  behavior, it only shows the setting. A file with errors gets this only once it is valid.
 - **Errors** — list them, one line each: `<key path> — <problem> — <what is expected>`. Then one
   AskUserQuestion: "I'll fix the file myself" or "Apply these corrections: …" (your proposed
   values, the smallest change that makes the file valid). Run no factory step until the file is
@@ -27,7 +34,7 @@ user may have edited it since the last one.
 | keys | a key that is not in the template, except `$schema` and the `project.commands` keys below; name the closest known key |
 | `agents` | an agent name that is not one of the template's; `model` not `haiku \| sonnet \| opus`; `effort` not `low \| medium \| high \| xhigh \| max` |
 | `routing.mode` | not `auto \| defaults` |
-| `workflow` | `until` not `discover \| specify \| plan \| build`; `pacing` not `task \| phase \| all`; `gate_order` not `parallel \| sequential`; `parallel_tasks`, `docs`, `retro` not booleans |
+| `workflow` | `until` not `discover \| specify \| plan \| build`; `pacing` not `task \| phase \| all`; `gate_order` not `parallel \| sequential`; `decisions` not `agent \| user`; `parallel_tasks`, `docs`, `retro` not booleans |
 | `failures` | `escalate_after` not an integer in 1–9; `ask_after` not an integer in 2–10; `escalate_after` ≥ `ask_after`; `debugger` not a boolean; `environment` not `fix-trivial \| ask` |
 | `security` | `exposure` not `private \| internal \| public`; a check not a boolean; `gates.security-reviewer` is not `off` while every check is `false` |
 | `tests` | `depth` not `minimal \| standard \| thorough`; a level not a boolean; every level `false` |
@@ -67,12 +74,14 @@ Setup spawns no agent and writes nothing but `.factory/settings.json`. It is unr
 
 4. Tell the user in three lines: the path, what was set (exposure, test depth and levels,
    pacing), and that they can edit the file at any time, ask you to change it, and commit it to
-   share it with their team.
+   share it with their team. Name one default there: after discover, the `decision` agent makes
+   the decisions and logs them for review; `workflow.decisions: "user"` puts every decision to
+   them instead.
 
-**Settings file exists:** run the Check, then list the keys the template has and the file lacks
-(a newer plugin) and any retired keys, and offer to add or remove them. Show a short summary
-(exposure and enabled checks, gates not `auto`, test depth and levels, pacing, routing mode,
-agents that differ from the template). Then apply the change the command describes, or ask what
+**Settings file exists:** run the Check (it adds the keys a newer plugin introduced), then list
+any retired keys and offer to remove them. Show a short summary
+(exposure and enabled checks, gates not `auto`, test depth and levels, pacing, who decides,
+routing mode, agents that differ from the template). Then apply the change the command describes, or ask what
 to change, as a proposed edit (old → new value per key) written only once the user approves.
 Changing `exposure` does not touch `checks`; offer to apply that exposure's preset.
 
@@ -83,7 +92,8 @@ Changing `exposure` does not touch `checks`; offer to apply that exposure's pres
 - A retro proposal of kind `settings` is approved when the user accepts it at phase close; write
   it then.
 - An agent's return or report may suggest a setting; put it to the user like any proposal.
-  Never change a setting on your own, even to unblock a run.
+  Never change a setting on your own, even to unblock a run. Adding a missing key with its
+  default value (Check) is not a change.
 
 ## How the settings apply
 
@@ -107,6 +117,11 @@ Changing `exposure` does not touch `checks`; offer to apply that exposure's pres
 - **Pacing** — a flag on the command wins; then `workflow.until` for `/factory new`; then
   `workflow.pacing` (`task`: stop after each task or parallel batch; `phase`: after each phase
   close; `all`: run every phase). `until: build` means no pause.
+- **Decisions** — `workflow.decisions: agent` sends every decision point after discover to
+  `decision`, which logs its answers in `decision-log.md` and escalates what needs the user;
+  `user` asks the user at every one (decisions.md). Setup, intake, discover and the greenfield
+  foundation ask the user either way. A change applies from the next decision point;
+  decisions already made stay until the user overrides them.
 - **Exposure** — copied into the intake answers of `brief.md`, so specs weigh hardening
   against it; security-reviewer reads it with `security.checks`.
 - **Tests** — test-strategist reads `tests` and `project.commands`; test-writer, code-reviewer

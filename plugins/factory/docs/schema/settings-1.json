@@ -218,6 +218,13 @@
             "effort": "medium"
           }
         },
+        "decision": {
+          "$ref": "#/$defs/agent",
+          "default": {
+            "model": "opus",
+            "effort": "xhigh"
+          }
+        },
         "model-router": {
           "$ref": "#/$defs/agent",
           "default": {
@@ -283,6 +290,14 @@
           ],
           "default": "parallel",
           "description": "After test-runner passes: run the other gates side by side (faster), or one at a time, ending the round at the first FAIL (cheaper)."
+        },
+        "decisions": {
+          "enum": [
+            "agent",
+            "user"
+          ],
+          "default": "agent",
+          "description": "Who answers the questions raised after discover (major ADRs, spec approval, agents' questions, changes, stuck loops, retro proposals). agent: the decision agent decides, logs each answer and its reasons in decision-log.md for you to review or override, and asks you only what needs your judgement. user: you answer every one. Setup, intake, discover and the greenfield foundation always ask you."
         },
         "docs": {
           "type": "boolean",

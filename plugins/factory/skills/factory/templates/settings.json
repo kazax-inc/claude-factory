@@ -30,6 +30,7 @@
     "docs-writer": { "model": "sonnet", "effort": "medium" },
     "commit-writer": { "model": "haiku", "effort": "low" },
     "retro-analyst": { "model": "sonnet", "effort": "medium" },
+    "decision": { "model": "opus", "effort": "xhigh" },
     "model-router": { "model": "opus", "effort": "high" },
     "state-keeper": { "model": "haiku", "effort": "low" }
   },
@@ -41,6 +42,7 @@
     "pacing": "phase",
     "parallel_tasks": true,
     "gate_order": "parallel",
+    "decisions": "agent",
     "docs": true,
     "retro": true
   },
