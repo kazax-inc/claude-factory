@@ -190,6 +190,17 @@ export async function fingerprint($: Engine, root: string): Promise<string> {
 }
 
 /**
+ * The feature a factory brief is for. Every brief the factory's orchestrator
+ * gives a subagent opens with `Feature:`, `Phase:` and `Task:` lines (its
+ * SKILL.md, brief header), so tools can attribute the run; undefined for any
+ * other prompt.
+ */
+export function briefFeature(prompt: string): string | undefined {
+  const match = /^\s*Feature:[ \t]*([^\s]+)[ \t]*\r?\n[ \t]*Phase:/.exec(prompt)
+  return match?.[1]
+}
+
+/**
  * The project folder `/factory-plan <path>` names: '' for the session's own
  * project (`.` or empty), else an absolute path. A path to the .factory
  * folder itself means the project holding it.

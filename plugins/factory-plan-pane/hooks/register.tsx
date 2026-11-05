@@ -8,7 +8,7 @@ import { atom, read, update } from 'claude-code'
 import type { Elements, EngineInterface, Register, Timer } from 'claude-code'
 
 import type { PlanFeature, PlanSnapshot } from '../types'
-import { chooseRoot, fingerprint, loadSnapshot } from './load'
+import { briefFeature, chooseRoot, fingerprint, loadSnapshot } from './load'
 import {
   STAGES,
   allTasks,
@@ -33,6 +33,10 @@ const snapshot = atom({ plugin: 'factory-plan-pane', key: 'snapshot' } as const,
 const expanded = atom({ plugin: 'factory-plan-pane', key: 'expanded' } as const, {}, { shape: 'expanded-1' })
 const rootChoice = atom({ plugin: 'factory-plan-pane', key: 'root' } as const, '')
 const featureChoice = atom({ plugin: 'factory-plan-pane', key: 'feature' } as const, '')
+const runningFeatures = atom({ plugin: 'factory-plan-pane', key: 'running' } as const, [])
+
+/** Agent statuses that still count as working (AgentStatus). */
+const WORKING = new Set(['pending', 'running', 'waiting'])
 
 type Els = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'>
 
@@ -66,6 +70,28 @@ function pickFeature(snap: PlanSnapshot, chosen: string): PlanFeature | undefine
   )
 }
 
+type Mark = { text: string; color: string }
+
+/**
+ * The icons after a feature's stage: a green dot while a factory agent works
+ * on it in this session, the tree's blocked mark when any of its tasks is
+ * blocked, and its done mark once the feature is done.
+ */
+function featureIcons(feature: PlanFeature, isRunning: boolean): Mark[] {
+  const icons: Mark[] = []
+  if (isRunning) icons.push({ text: '●', color: 'success' })
+  if (progress(allTasks(feature)).blocked > 0) icons.push({ text: LOOK.blocked.glyph, color: LOOK.blocked.color })
+  if (feature.status === 'done' || feature.stage === 'done') icons.push({ text: LOOK.done.glyph, color: LOOK.done.color })
+  return icons
+}
+
+/** What the feature's STATE.md says when it needs the person: waiting on them, or paused. */
+function featureNote(feature: PlanFeature): Mark | undefined {
+  if (feature.status === 'waiting_on_user') return { text: '(waiting on you)', color: 'warning' }
+  if (feature.status === 'paused') return { text: '(paused)', color: 'inactive' }
+  return undefined
+}
+
 function describe(snap: PlanSnapshot, sessionRoot: string): string {
   const where = shortPath(snap.root, sessionRoot)
   if (!snap.isInitialized) return `the factory plugin is not initialized in ${where}`
@@ -85,6 +111,27 @@ let lastFingerprint = ''
 let pending: Timer | undefined
 let inFlight: Promise<PlanSnapshot | undefined> | undefined
 let isQueued = false
+/** Factory subagents working now: agent id to the feature its brief names. */
+const agents = new Map<string, string>()
+
+/** Writes the features the tracked agents work on, when they changed. */
+async function syncRunning($: EngineInterface): Promise<void> {
+  const names = [...new Set(agents.values())].sort()
+  const now = await read($, runningFeatures)
+  if (now.length === names.length && now.every((name, index) => name === names[index])) return
+  await update($, runningFeatures, () => names)
+}
+
+/** Drops tracked agents the session no longer lists as working (stopped, failed). */
+async function pruneAgents($: EngineInterface): Promise<void> {
+  if (agents.size === 0) return
+  const listed = await $.agent.list()
+  for (const id of [...agents.keys()]) {
+    const agent = listed.find(one => one.id === id)
+    if (agent === undefined || !WORKING.has(agent.status)) agents.delete(id)
+  }
+  await syncRunning($)
+}
 
 async function reload($: EngineInterface): Promise<PlanSnapshot> {
   const root = await projectRoot($)
@@ -134,6 +181,7 @@ function scheduleReload($: EngineInterface): void {
 async function poll($: EngineInterface): Promise<void> {
   const panes = await $.ui.panes()
   if (!panes.some(pane => pane.id === PANE && pane.isPlaced && pane.isShown)) return
+  await pruneAgents($)
   const now = await fingerprint($, await projectRoot($))
   if (now !== lastFingerprint) await requestReload($)
 }
@@ -147,6 +195,9 @@ export const register: Register = (on, options) => {
       description: 'Show the factory plan in a pane (optionally for another project folder)',
       argumentHint: '[project folder]',
     })
+    // A reload forgets which agents were tracked: start from none running.
+    agents.clear()
+    await update($, runningFeatures, () => [])
     await requestReload($).catch(() => undefined)
     $.clock.every(POLL_MS, () => void poll($).catch(() => undefined))
     return next(e)
@@ -187,7 +238,20 @@ export const register: Register = (on, options) => {
     return result
   }).catch(($, e, next) => next(e))
 
-  on('turn.complete', ($, e, next) => {
+  // A feature runs from the start of a subagent briefed for it (the brief
+  // opens with `Feature: <name>`) until that agent's own turn completes.
+  on('agent.spawn', async ($, e, next) => {
+    const feature = briefFeature(e.prompt)
+    const started = await next(e)
+    if (feature !== undefined && started.agentId !== undefined) {
+      agents.set(started.agentId, feature)
+      await syncRunning($)
+    }
+    return started
+  }).catch(($, e, next) => next(e))
+
+  on('turn.complete', async ($, e, next) => {
+    if (e.agentId !== undefined && agents.delete(e.agentId)) await syncRunning($)
     scheduleReload($)
     return next(e)
   })
@@ -263,6 +327,7 @@ export const register: Register = (on, options) => {
       )
     }
 
+    const running = await read($, runningFeatures)
     const choices = await read($, expanded)
     const rows = flatten(feature, choices)
     const keys = expandableKeys(feature)
@@ -276,8 +341,10 @@ export const register: Register = (on, options) => {
 
     return (
       <Box flexDirection="column">
-        {snap.features.length > 1 ? featureTabs(els, snap, feature, name => update($, featureChoice, () => name)) : null}
-        {header(els, snap, feature, width)}
+        {snap.features.length > 1
+          ? featureList(els, snap, feature, running, name => update($, featureChoice, () => name))
+          : null}
+        {header(els, snap, feature, running.includes(feature.name), width)}
         {feature.hasPlan ? (
           <Box flexDirection="row" gap={2} marginTop={1}>
             <Button key="expand-all" plain hotkey="e" label="Expand all" onPress={() => void setAll(true)} />
@@ -302,22 +369,27 @@ export const register: Register = (on, options) => {
   })
 }
 
-function featureTabs(els: Els, snap: PlanSnapshot, shown: PlanFeature, choose: (name: string) => unknown) {
+/** One row per feature, `● <feature> [<stage>] <icons> (<note>)`; a press shows that feature. */
+function featureList(
+  els: Els,
+  snap: PlanSnapshot,
+  shown: PlanFeature,
+  running: readonly string[],
+  choose: (name: string) => unknown,
+) {
   const { Box, Button, Text } = els
   return (
-    <Box flexDirection="row" flexWrap="wrap" columnGap={2} marginBottom={1}>
+    <Box flexDirection="column" marginBottom={1}>
       {snap.features.map(feature => {
         const isShown = feature.name === shown.name
-        const mark = feature.name === snap.active ? ' ★' : ''
+        const marks = [...featureIcons(feature, running.includes(feature.name)), featureNote(feature)]
         return (
-          <Button key={`feature:${feature.name}`} plain dimColor={!isShown} onPress={() => void choose(feature.name)}>
-            {isShown ? (
-              <Text color="claude" weight="bold">
-                {`● ${feature.name}${mark}`}
-              </Text>
-            ) : (
-              `○ ${feature.name}${mark}`
-            )}
+          <Button key={`feature:${feature.name}`} plain onPress={() => void choose(feature.name)}>
+            <Text color={isShown ? 'claude' : undefined} weight={isShown ? 'bold' : undefined} dimColor={!isShown}>
+              {`${isShown ? '●' : '○'} ${feature.name}`}
+            </Text>
+            {feature.stage !== '' ? <Text dimColor>{` [${feature.stage}]`}</Text> : ''}
+            {marks.map(mark => (mark === undefined ? '' : <Text color={mark.color}>{` ${mark.text}`}</Text>))}
           </Button>
         )
       })}
@@ -325,9 +397,11 @@ function featureTabs(els: Els, snap: PlanSnapshot, shown: PlanFeature, choose: (
   )
 }
 
-function header(els: Els, snap: PlanSnapshot, feature: PlanFeature, width: number) {
+function header(els: Els, snap: PlanSnapshot, feature: PlanFeature, isRunning: boolean, width: number) {
   const { Box, Text } = els
-  const state = [feature.status.replace(/_/g, ' '), feature.name === snap.active ? 'active feature' : '']
+  const icons = featureIcons(feature, isRunning)
+  const words = feature.status === 'waiting_on_user' ? 'waiting on you' : feature.status === 'paused' ? 'paused' : ''
+  const state = [words, feature.name === snap.active ? 'active feature' : '']
     .filter(part => part !== '')
     .join(' · ')
   const tasks = progress(allTasks(feature))
@@ -346,6 +420,9 @@ function header(els: Els, snap: PlanSnapshot, feature: PlanFeature, width: numbe
     <Box flexDirection="column">
       <Text>
         <Text weight="bold">{feature.name}</Text>
+        {icons.map(icon => (
+          <Text color={icon.color}>{` ${icon.text}`}</Text>
+        ))}
         {state !== '' ? <Text dimColor>{` · ${state}`}</Text> : null}
       </Text>
       {feature.summary !== '' ? <Text dimColor>{feature.summary}</Text> : null}

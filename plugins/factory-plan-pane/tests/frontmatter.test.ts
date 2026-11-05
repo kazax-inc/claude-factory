@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing'
 
 import { frontmatter, parseYaml } from '../hooks/frontmatter'
-import { chooseRoot } from '../hooks/load'
+import { briefFeature, chooseRoot } from '../hooks/load'
 import { fit, rollup } from '../hooks/tree'
 
 describe('frontmatter', () => {
@@ -65,6 +65,15 @@ describe('chooseRoot', () => {
     expect(chooseRoot('/proj', './fixtures/demo/.factory')).toBe('/proj/fixtures/demo')
     expect(chooseRoot('/proj', '"/other place"')).toBe('/other place')
     expect(chooseRoot('/proj', 'C:\\work\\app')).toBe('C:\\work\\app')
+  })
+})
+
+describe('briefFeature', () => {
+  test('reads the feature of a factory brief, and nothing from another prompt', () => {
+    expect(briefFeature('Feature: git-panel\nPhase: 2\nTask: T2.2\nProject: existing')).toBe('git-panel')
+    expect(briefFeature('\nFeature: auth\r\nPhase: setup\r\nTask: intake')).toBe('auth')
+    expect(briefFeature('Feature: auth')).toBeUndefined()
+    expect(briefFeature('Summarize the Feature: list\nPhase: x')).toBeUndefined()
   })
 })
 
