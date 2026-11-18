@@ -336,16 +336,16 @@ flowchart LR
     ORCH --> CLOSING
     ORCH --> SUPPORT
 
-    specs_writer -. reviewed by .-> spec_reviewer
-    plan_writer -. reviewed by .-> plan_reviewer
-    test_strategist -. checked by .-> plan_reviewer
-    implementer -. verified by .-> test_runner
-    test_runner -. failures .-> debugger
-    implementer -. audited by .-> spec_auditor
-    model_router -. routing/ .-> ORCH
-    state_keeper -. STATE.md .-> ORCH
-    retro_analyst -. proposals .-> ORCH
-    decision -. decision-log.md .-> ORCH
+    specs_writer -.->|"reviewed by"| spec_reviewer
+    plan_writer -.->|"reviewed by"| plan_reviewer
+    test_strategist -.->|"checked by"| plan_reviewer
+    implementer -.->|"verified by"| test_runner
+    test_runner -.->|"failures"| debugger
+    implementer -.->|"audited by"| spec_auditor
+    model_router -.->|"routing/"| ORCH
+    state_keeper -.->|"STATE.md"| ORCH
+    retro_analyst -.->|"proposals"| ORCH
+    decision -.->|"decision-log.md"| ORCH
 ```
 
 ## Agents
